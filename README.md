@@ -1,100 +1,89 @@
 # OpenInstall
 
-**A Windows software setup assistant built around an open-source-first catalog.**
+**An open-source-first software installer for Windows.**
 
-OpenInstall aims to make setting up a fresh Windows PC easier: browse a curated catalog, select multiple apps, and install them from one place. It combines open-source tools with useful freeware and proprietary apps, clearly labeling their licensing status.
+OpenInstall is a desktop app for discovering a curated set of Windows applications, selecting several at once, and installing them through WinGet. It includes open-source software alongside freeware and proprietary apps, with license labels so the distinction stays clear.
 
-> **Project status:** Early development (v0.4.0 / Release 3). This project is not yet a mature or security-audited installer. Review the code and package details before use, especially before approving Windows elevation prompts.
+> **Status: early development.** This project has not undergone an independent security audit. Catalog IDs and installation behavior can change; review each app and any Windows UAC prompt before proceeding.
 
-## What it aims to do
+## Features
 
-- **Curated software catalog** across creative tools, development, utilities, documents, networking, gaming, and everyday apps.
-- **Bulk install queue** with progress, logs, cancellation, and per-app failure reporting.
-- **Setup profiles** for Everyday Essentials, Creator Studio, Developer Workstation, Gaming Essentials, Privacy & Safety, and Open-Source Toolkit.
-- **WinGet-based installed-app detection** for catalog entries with matching package IDs.
-- **Saved setup recipes**: export a selection to JSON and import it on another PC.
-- **Selected-app updates** using WinGet.
-- **Prefer current-user installs** to reduce unnecessary administrator prompts when a package supports per-user installation.
-- **Windows installer build** using Electron Builder and GitHub Actions.
+- Search a curated catalog across creative tools, development, utilities, documents, networking, gaming, media, and everyday apps.
+- Filter by category and license type.
+- Select multiple applications and install them in a sequential queue.
+- Use six starter profiles: Everyday Essentials, Creator Studio, Developer Workstation, Gaming Essentials, Privacy & Safety, and Open-Source Toolkit.
+- Detect applications recognized by WinGet.
+- Prefer per-user installation scope to reduce unnecessary elevation prompts where the package supports it.
+- Build a per-user Windows setup executable with Electron Builder.
+- Build the Windows installer automatically with GitHub Actions.
 
-## Important security notes
+## Screenshots
 
-OpenInstall launches package-manager commands for software selected by the user. Treat it as software that can make meaningful changes to your PC.
+Screenshots will be added as the interface stabilizes.
 
-- Review the publisher and package identity before installing.
-- Only approve a Windows UAC prompt when you understand which installer requested it.
-- OpenInstall does **not** disable or bypass Windows security prompts.
-- The current-user install preference uses WinGet's `--scope user` where supported. Some packages do not support user scope and may fail; unchecking that preference allows WinGet to choose its default scope and may require administrator approval.
-- Package availability, identifiers, publisher behavior, and installer options can change. Catalog entries should be verified regularly.
-- Website-only catalog entries open their official download pages and require you to complete the installation manually.
-- Installed-app detection is based on WinGet and may not detect software installed through other channels.
-- This project has not undergone an independent security audit. Use at your own discretion.
+## Download
 
-## Get OpenInstall
+Visit [GitHub Releases](https://github.com/ankit3129/Openinstall/releases) for packaged Windows installers when available. You can also download the repository as a ZIP using **Code → Download ZIP**.
 
-### Download a Windows build
+## Build from source (Windows)
 
-Check the [Releases page](https://github.com/ankit3129/Openinstall/releases) for published installers. Until a release asset is available, you can build from source using the instructions below.
+**Requirements:** Windows 10/11, Node.js LTS with npm, WinGet/App Installer, and an internet connection.
 
-### Build from source (Windows)
-
-Requirements:
-- Windows 10 or Windows 11
-- [Node.js LTS](https://nodejs.org/) with npm
-- An internet connection to download npm dependencies
-
-1. Clone or download this repository.
-2. Open a terminal in the repository folder.
-3. Install dependencies:
+1. Clone this repository or download its ZIP.
+2. Open a terminal in the project folder.
+3. Install dependencies with npm 10 (this avoids install-script approval differences seen in newer npm versions):
    ```powershell
-   npm install
+   npx --yes npm@10 install
    ```
-4. Run syntax checks:
+4. Check JavaScript syntax:
    ```powershell
-   npm run check
+   npx --yes npm@10 run check
    ```
-5. Launch the app in development:
+5. Launch in development:
    ```powershell
-   npm start
+   npx --yes npm@10 start
    ```
-6. Build a Windows setup executable:
+6. Build the Windows installer:
    ```powershell
-   npm run dist:win
+   npx --yes npm@10 run dist:win
    ```
 
-The setup executable should appear in the `release/` directory. First-time dependency installation can take several minutes. Normal users should receive a packaged installer rather than being asked to install Node.js.
+The setup executable is written to `release/`. Initial dependency downloads can take several minutes. A normal user should receive the packaged installer and should not need Node.js or npm.
 
-You can also run `Build-OpenInstall-Installer.bat` on Windows to follow the guided build steps.
+You can also double-click `Build-OpenInstall-Installer.bat` for a guided build.
 
 ## GitHub Actions
 
-The workflow in `.github/workflows/build-windows.yml` runs on Windows when manually triggered and when a version tag such as `v0.4.0` is pushed. It installs dependencies, checks JavaScript syntax, builds the NSIS installer, and uploads the resulting `.exe` as a workflow artifact. For version tags, it also attaches the installer to the GitHub Release.
+The workflow at `.github/workflows/build-windows.yml` builds on pushes to `main`, on version tags (`v*`), or when manually started from the Actions tab. It checks the source, builds the Windows NSIS installer, and uploads the executable as an artifact. When a version tag is pushed, it also attaches the installer to the GitHub Release.
 
-## Catalog and licensing
+## Installation and security
 
-The catalog is maintained in `src/software.json`. OpenInstall is open-source-first, but **not every listed application is open source**. Application names, trademarks, binaries, and logos belong to their respective owners, and each app remains under its own license. Catalog presence is not an endorsement or guarantee of safety.
+OpenInstall asks WinGet to install the package IDs stored in `src/software.json`. It does not download arbitrary commands from the renderer or disable Windows security protections.
 
-Before adding a new entry, verify:
-1. Official project or publisher source.
-2. Exact WinGet package ID or official download URL.
-3. License classification (open source, freeware, or proprietary).
-4. Supported Windows architectures and installation scope.
-5. Whether silent installation is supported and whether elevation is expected.
+- The **Prefer per-user installs** option adds WinGet's `--scope user`. It can reduce administrator prompts, but packages that do not support user scope may fail.
+- Turning that option off allows WinGet to use its default behavior, which may request administrator approval.
+- Some installers genuinely require elevation. Never approve a prompt unless you recognize the publisher and understand the requested action.
+- Installed-app detection is based on WinGet and may not detect apps installed by other methods.
+- Silent installation behavior varies by package and publisher.
+- The current catalog is a starter set and package identifiers should be revalidated before each release.
+
+## Catalog and licenses
+
+Catalog data lives in `src/software.json`. Each entry contains a display name, category, description, WinGet package ID, and a license classification. **Not every app is open source.** Application names, trademarks, binaries, and their licenses belong to their respective publishers. Listing an app is not an endorsement or guarantee of safety.
+
+Before contributing an entry, verify the official publisher, exact package ID, license, supported Windows architecture, installation scope, and silent-install behavior. Do not add arbitrary shell commands or unverified download URLs.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue before large changes, especially for new catalog sources or installer behavior.
-
-When submitting a catalog entry, include its official source, package identifier, license classification, and any known installation limitations. Do not add arbitrary shell commands or unverified download URLs.
+Issues and pull requests are welcome. For catalog changes, include official source links and the reasoning for the package ID and license classification. Please describe any installation limitations and test results.
 
 ## Roadmap
 
-- Improve first-run and installation reliability.
-- Expand and validate the catalog.
-- Improve profiles, app detection, progress reporting, and recovery.
-- Publish reproducible, signed Windows releases when practical.
-- Add contributor documentation and automated catalog validation.
+- Expand and automatically validate catalog entries.
+- Improve installation progress and failure recovery.
+- Add persistent setup recipes and a dedicated update center.
+- Add screenshots, tests, signed releases, and contributor guidance.
 
 ## License
 
-The OpenInstall source code is intended to be licensed under the MIT License; see [LICENSE](LICENSE). Third-party applications remain under their own licenses.
+OpenInstall source code is released under the [MIT License](LICENSE). Third-party applications remain under their own licenses.
