@@ -2,7 +2,7 @@
 
 **An open-source-first software installer for Windows.**
 
-OpenInstall is a desktop app for discovering a curated set of Windows applications, selecting several at once, and installing them through WinGet. It includes open-source software alongside freeware and proprietary apps, with license labels so the distinction stays clear.
+OpenInstall is a desktop app for discovering a curated catalog of 215 Windows applications: 203 WinGet packages and 12 official-website entries, including the ArtCraft suite. Select supported packages to install through WinGet; website entries open the publisher's download page. License labels distinguish open-source software, freeware, and proprietary apps.
 
 > **Status: early development.** This project has not undergone an independent security audit. Catalog IDs and installation behavior can change; review each app and any Windows UAC prompt before proceeding.
 
@@ -10,7 +10,8 @@ OpenInstall is a desktop app for discovering a curated set of Windows applicatio
 
 - Search a curated catalog across creative tools, development, utilities, documents, networking, gaming, media, and everyday apps.
 - Filter by category and license type.
-- Select multiple applications and install them in a sequential queue.
+- Select multiple WinGet applications and install them in a sequential queue.
+- Open official download pages for the 12 catalog entries without a WinGet package, including ArtCraft tools.
 - Use six starter profiles: Everyday Essentials, Creator Studio, Developer Workstation, Gaming Essentials, Privacy & Safety, and Open-Source Toolkit.
 - Detect applications recognized by WinGet.
 - Prefer per-user installation scope to reduce unnecessary elevation prompts where the package supports it.
