@@ -1,0 +1,38 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies with npm 10
+        run: npx --yes npm@10 install
+      - name: Check JavaScript syntax
+        run: npx --yes npm@10 run check
+      - name: Build Windows setup
+        run: npx --yes npm@10 run dist:win
+      - name: Upload setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenInstall-Windows-Setup
+          path: release/*.exe
+          if-no-files-found: error
+      - name: Publish installer to tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
