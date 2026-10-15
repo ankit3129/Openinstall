@@ -6,7 +6,17 @@ const { spawn } = require("node:child_process");
 
 let mainWindow;
 const catalogParts = ["catalog-part1.json", "catalog-part2.json", "catalog-part3.json", "catalog-part4.json"];
-const rawCatalog = catalogParts.flatMap((file) => JSON.parse(fs.readFileSync(path.join(__dirname, file), "utf8")));
+const rawCatalog = catalogParts.flatMap((file) => {
+  const catalogPath = path.join(__dirname, file);
+  try {
+    const parsed = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+    if (!Array.isArray(parsed)) throw new Error("Expected an array");
+    return parsed;
+  } catch (error) {
+    console.error("Failed to load catalog part:", catalogPath, error);
+    return [];
+  }
+});
 const catalog = rawCatalog.map((item) => ({ ...item, sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null) }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
 
@@ -71,7 +81,7 @@ function runWinget(args, timeoutMs = 10 * 60 * 1000) {
     child.on("close", (code) => finish({ ok: code === 0, code, output: (stdout + "\n" + stderr).trim(), error: code === 0 ? null : "WinGet exited with code " + code }));
   });
 }
-ipcMain.handle("catalog:list", () => catalog);
+ipcMain.handle("catalog:list", () => { console.info("Returning catalog entries:", catalog.length); return catalog; });
 ipcMain.handle("update:state", () => publicUpdateState());
 ipcMain.handle("update:check", () => checkForUpdates(true));
 ipcMain.handle("update:install", () => { if (updateState.state !== "ready") return { ok: false }; if (!app.isPackaged) return { ok: true, simulated: true }; setImmediate(() => autoUpdater.quitAndInstall(true, true)); return { ok: true }; });
