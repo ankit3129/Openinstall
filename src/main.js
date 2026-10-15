@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn } = require("node:child_process");
@@ -13,6 +14,28 @@ const catalog = rawCatalog.map((item) => ({
   sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null)
 }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
+
+
+function configureAutoUpdates() {
+  if (!app.isPackaged) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("error", (error) => console.error("OpenInstall update check failed:", error.message));
+  autoUpdater.on("update-downloaded", async (info) => {
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "OpenInstall update ready",
+      message: "OpenInstall " + info.version + " is ready to install.",
+      detail: "Save any work in OpenInstall. The app will restart to finish updating.",
+      buttons: ["Restart and update", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    });
+    if (result.response === 0) autoUpdater.quitAndInstall();
+  });
+  autoUpdater.checkForUpdatesAndNotify().catch((error) => console.error("Could not check for OpenInstall updates:", error.message));
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -110,6 +133,7 @@ ipcMain.handle("external:open", async (_event, url) => {
 
 app.whenReady().then(() => {
   createWindow();
+  configureAutoUpdates();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
