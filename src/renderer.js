@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const state = { catalog: [], selected: new Set(), installed: new Set(), view: "discover", busy: false };
-const profiles = [
+let profiles = [
   { name: "Everyday essentials", description: "The basics for a new Windows PC.", ids: ["mozilla-firefox","vlc-media-player","7-zip","libreoffice","everything","sharex"] },
   { name: "Creator studio", description: "Make, record, edit, and publish.", ids: ["blender","gimp","krita","inkscape","obs-studio","audacity","kdenlive"] },
   { name: "Developer workstation", description: "A practical starting toolkit for coding.", ids: ["visual-studio-code","git","python-3","node.js-lts","github-desktop","dbeaver-community"] },
@@ -176,7 +176,7 @@ window.openInstall.onUpdateStatus(renderUpdate);
 window.openInstall.getUpdateState().then(renderUpdate).catch(() => {});
 
 (async function init() {
-  state.catalog = await window.openInstall.getCatalog(); renderCategories(); renderProfiles(); renderApps();
+  state.catalog = await window.openInstall.getCatalog(); profiles = await window.openInstall.getProfiles(); renderCategories(); renderProfiles(); renderApps();
   const status = await window.openInstall.checkWinget(); $("#winget-status").textContent = status.available ? "WinGet " + status.version : status.message;
   if (!status.available) $("#winget-status").parentElement.classList.add("warning");
   await refreshInstalled();
