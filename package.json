@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
-    "dist:win": "electron-builder --win nsis"
+    "dist:win": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "electron": "38.8.6",
@@ -19,10 +19,17 @@
     "appId": "org.openinstall.desktop",
     "productName": "OpenInstall",
     "asar": true,
-    "directories": { "output": "release" },
-    "files": ["src/**/*", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "OpenInstall-${version}-Setup.${ext}",
       "requestedExecutionLevel": "asInvoker"
     },
