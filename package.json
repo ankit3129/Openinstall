@@ -25,7 +25,6 @@
     "files": [
       "src/**/*",
       "scripts/**/*",
-      "build/icon.ico",
       "package.json"
     ],
     "win": {
