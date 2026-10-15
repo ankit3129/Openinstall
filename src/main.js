@@ -19,6 +19,8 @@ const rawCatalog = catalogParts.flatMap((file) => {
 });
 const catalog = rawCatalog.map((item) => ({ ...item, sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null) }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
+let profiles = [];
+try { profiles = JSON.parse(fs.readFileSync(path.join(__dirname, "profiles.json"), "utf8")); } catch (error) { console.error("Failed to load profiles:", error); }
 
 // ---------- Auto updates ----------
 const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -82,6 +84,7 @@ function runWinget(args, timeoutMs = 10 * 60 * 1000) {
   });
 }
 ipcMain.handle("catalog:list", () => { console.info("Returning catalog entries:", catalog.length); return catalog; });
+ipcMain.handle("catalog:profiles", () => profiles);
 ipcMain.handle("update:state", () => publicUpdateState());
 ipcMain.handle("update:check", () => checkForUpdates(true));
 ipcMain.handle("update:install", () => { if (updateState.state !== "ready") return { ok: false }; if (!app.isPackaged) return { ok: true, simulated: true }; setImmediate(() => autoUpdater.quitAndInstall(true, true)); return { ok: true }; });
