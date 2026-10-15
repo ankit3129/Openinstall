@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+  <title>OpenInstall</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">O</div><div><strong>OpenInstall</strong><small>Software, sorted.</small></div></div>
+      <div class="sidebar-label">WORKSPACE</div>
+      <button class="nav-item active" data-view="discover"><span>▦</span> Discover</button>
+      <button class="nav-item" data-view="profiles"><span>✦</span> Setup profiles</button>
+      <button class="nav-item" data-view="installed"><span>✓</span> Installed apps</button>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-note"><span class="status-dot"></span><span id="winget-status">Checking WinGet…</span></div>
+      <div class="sidebar-footer">Open-source-first · Windows</div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">YOUR WINDOWS TOOLKIT</div><h1 id="page-title">Discover software</h1></div>
+        <div class="top-actions"><button id="refresh-btn" class="icon-button" title="Refresh installed apps">↻</button><button id="selection-button" class="primary-button">Install selected <span id="selected-count">0</span></button></div>
+      </header>
+      <section class="hero">
+        <div class="hero-copy"><span class="pill">ONE PLACE. YOUR APPS.</span><h2>A better start<br>for your PC.</h2><p>Discover useful software, choose what you need, and let OpenInstall handle the busywork.</p></div>
+        <div class="hero-art"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="hero-window"><div class="window-dots">● ● ●</div><div class="mock-row"><span class="mock-icon">✦</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">◈</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">▣</span><span></span><i>+</i></div></div></div>
+      </section>
+      <section class="toolbar">
+        <label class="search-box"><span>⌕</span><input id="search-input" type="search" placeholder="Search apps, categories, or descriptions…" autocomplete="off"></label>
+        <select id="category-filter" aria-label="Filter by category"><option value="all">All categories</option></select>
+        <select id="license-filter" aria-label="Filter by license"><option value="all">All licenses</option><option>Open source</option><option>Freeware</option><option>Proprietary</option></select>
+      </section>
+      <section id="profiles-panel" class="profiles-panel hidden"></section>
+      <section class="catalog-heading"><div><h3 id="section-title">Popular picks</h3><p id="result-count">Loading catalog…</p></div><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label></section>
+      <section id="app-grid" class="app-grid"></section>
+      <section id="empty-state" class="empty-state hidden"><div>⌕</div><h3>No apps found</h3><p>Try a different search or category.</p></section>
+      <section id="queue-panel" class="queue-panel hidden"><div class="queue-head"><div><h3>Installation queue</h3><p id="queue-summary">Preparing selected apps…</p></div><button id="clear-queue" class="text-button">Clear results</button></div><div id="queue-list"></div></section>
+      <footer>OpenInstall is early-stage software. Review publishers and approve Windows prompts only when you understand them.</footer>
+    </main>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
