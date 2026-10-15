@@ -1,0 +1,8 @@
+[
+  { "name": "Everyday essentials", "description": "The basics for a new Windows PC.", "ids": ["mozilla-firefox","vlc-media-player","7-zip","libreoffice","everything","sharex"] },
+  { "name": "Creator studio", "description": "Make, record, edit, and publish.", "ids": ["blender","gimp","krita","inkscape","obs-studio","audacity","kdenlive"] },
+  { "name": "Developer workstation", "description": "A practical starting toolkit for coding.", "ids": ["visual-studio-code","git","python-3","node.js-lts","github-desktop","dbeaver-community"] },
+  { "name": "Gaming essentials", "description": "Game libraries and useful companion tools.", "ids": ["steam","prism-launcher","playnite","obs-studio","7-zip"] },
+  { "name": "Privacy & safety", "description": "Tools for passwords, encryption, and sync.", "ids": ["keepassxc","veracrypt","syncthing","wireguard","mozilla-firefox"] },
+  { "name": "Open-source toolkit", "description": "A selection of community-built apps.", "ids": ["blender","gimp","krita","vlc-media-player","7-zip","libreoffice","qbittorrent"] }
+]
