@@ -9,8 +9,23 @@ const profiles = [
   { name: "Open-source toolkit", description: "A selection of community-built apps.", ids: ["Blender","GIMP","Krita","VLC","7-Zip","LibreOffice","qBittorrent"] }
 ];
 const iconFor = (name) => name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-const logoUrlFor = (app) => { try { return "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(new URL(app.source).hostname) + "&sz=128"; } catch { return ""; } };
-const appIconMarkup = (app) => { const url = logoUrlFor(app); return '<div class="app-icon" aria-label="' + escapeHtml(app.name) + ' logo">' + (url ? '<img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<span>' + escapeHtml(iconFor(app.name)) + '</span></div>'; };
+const logoUrlsFor = (app) => {
+  try {
+    const site = new URL(app.source);
+    const domain = site.hostname.replace(/^www\\./, "");
+    return [
+      "https://icons.duckduckgo.com/ip3/" + encodeURIComponent(domain) + ".ico",
+      "https://www.google.com/s2/favicons?domain_url=" + encodeURIComponent(site.origin) + "&sz=128",
+      "https://icon.horse/icon/" + encodeURIComponent(domain)
+    ];
+  } catch { return []; }
+};
+const appIconMarkup = (app) => {
+  const urls = logoUrlsFor(app);
+  const fallback = app.icon || iconFor(app.name);
+  const image = urls.length ? '<img src="' + escapeHtml(urls[0]) + '" data-fallbacks="' + escapeHtml(JSON.stringify(urls.slice(1))) + '" alt="' + escapeHtml(app.name) + ' logo" loading="lazy" referrerpolicy="no-referrer" onerror="const a=JSON.parse(this.dataset.fallbacks||\'[]\');if(a.length){this.dataset.fallbacks=JSON.stringify(a.slice(1));this.src=a[0]}else{this.remove()}">' : "";
+  return '<div class="app-icon" aria-label="' + escapeHtml(app.name) + ' logo">' + image + '<span>' + escapeHtml(fallback) + '</span></div>';
+};
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 
 function renderCategories() {
