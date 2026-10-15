@@ -17,13 +17,14 @@
       <button class="nav-item" data-view="installed"><span>✓</span> Installed apps</button>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-note"><span class="status-dot"></span><span id="winget-status">Checking WinGet…</span></div>
-      <div class="sidebar-footer">Open-source-first · Windows</div>
+      <div class="sidebar-footer">Open-source-first · Windows<div class="version-row"><span id="app-version"></span><button id="check-updates" class="text-button">Check for updates</button></div></div>
     </aside>
     <main class="main">
       <header class="topbar">
         <div><div class="eyebrow">YOUR WINDOWS TOOLKIT</div><h1 id="page-title">Discover software</h1></div>
         <div class="top-actions"><button id="refresh-btn" class="icon-button" title="Refresh installed apps">↻</button><button id="selection-button" class="primary-button">Install selected <span id="selected-count">0</span></button></div>
       </header>
+      <section id="update-banner" class="update-banner hidden" role="status" aria-live="polite"><div class="update-text"><strong id="update-title"></strong><span id="update-detail"></span></div><progress id="update-progress" class="hidden" max="100" value="0"></progress><div class="update-actions"><button id="update-notes" class="text-button hidden">What is new</button><button id="update-dismiss" class="text-button hidden">Later</button><button id="update-restart" class="primary-button hidden">Restart and update</button></div></section>
       <section class="hero">
         <div class="hero-copy"><span class="pill">ONE PLACE. YOUR APPS.</span><h2>A better start<br>for your PC.</h2><p>Discover useful software, choose what you need, and let OpenInstall handle the busywork.</p></div>
         <div class="hero-art"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="hero-window"><div class="window-dots">● ● ●</div><div class="mock-row"><span class="mock-icon">✦</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">◈</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">▣</span><span></span><i>+</i></div></div></div>
