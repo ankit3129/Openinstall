@@ -23,11 +23,24 @@ const logoUrlsFor = (app) => {
 const appIconMarkup = (app) => {
   const urls = logoUrlsFor(app);
   const fallback = app.icon || iconFor(app.name);
-  const image = urls.length ? '<img src="' + escapeHtml(urls[0]) + '" data-fallbacks="' + escapeHtml(JSON.stringify(urls.slice(1))) + '" alt="' + escapeHtml(app.name) + ' logo" loading="lazy" referrerpolicy="no-referrer" onerror="const a=JSON.parse(this.dataset.fallbacks||\'[]\');if(a.length){this.dataset.fallbacks=JSON.stringify(a.slice(1));this.src=a[0]}else{this.remove()}">' : "";
+  const image = urls.length ? '<img src="' + escapeHtml(urls[0]) + '" data-fallbacks="' + escapeHtml(JSON.stringify(urls.slice(1))) + '" alt="' + escapeHtml(app.name) + ' logo" loading="lazy" referrerpolicy="no-referrer">' : "";
   return '<div class="app-icon" aria-label="' + escapeHtml(app.name) + ' logo">' + image + '<span>' + escapeHtml(fallback) + '</span></div>';
 };
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 
+function wireLogoFallbacks(root) {
+  root.querySelectorAll(".app-icon img").forEach((image) => {
+    image.addEventListener("error", function retryLogo() {
+      const fallbacks = JSON.parse(image.dataset.fallbacks || "[]");
+      if (fallbacks.length) {
+        image.dataset.fallbacks = JSON.stringify(fallbacks.slice(1));
+        image.src = fallbacks[0];
+      } else {
+        image.remove();
+      }
+    });
+  });
+}
 function renderCategories() {
   const select = $("#category-filter");
   const current = select.value;
@@ -55,6 +68,7 @@ function renderApps() {
       '<div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' + (installed ? '<span class="installed-badge">Installed</span>' : "") + '</div>' +
       '<p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span>' + escapeHtml(app.category) + '</span><span class="license-tag">' + escapeHtml(app.license) + '</span></div></article>';
   }).join("");
+  wireLogoFallbacks($("#app-grid"));
   $("#empty-state").classList.toggle("hidden", apps.length !== 0);
   $("#app-grid").classList.toggle("hidden", apps.length === 0);
   $("#selected-count").textContent = state.selected.size;
