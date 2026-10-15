@@ -1,0 +1,532 @@
+[
+  {
+    "id": "mozilla.firefox",
+    "name": "Firefox",
+    "category": "Internet",
+    "description": "Mozilla Firefox browser",
+    "packageId": "Mozilla.Firefox",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "brave.brave",
+    "name": "Brave",
+    "category": "Internet",
+    "description": "Privacy-focused browser",
+    "packageId": "Brave.Brave",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "hibbiki.chromium",
+    "name": "Chromium",
+    "category": "Internet",
+    "description": "Open-source Chromium browser",
+    "packageId": "Hibbiki.Chromium",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "mozilla.thunderbird",
+    "name": "Thunderbird",
+    "category": "Communication",
+    "description": "Email, calendar and contacts",
+    "packageId": "Mozilla.Thunderbird",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "openwhispersystems.signal",
+    "name": "Signal",
+    "category": "Communication",
+    "description": "Private messaging",
+    "packageId": "OpenWhisperSystems.Signal",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "element.element",
+    "name": "Element",
+    "category": "Communication",
+    "description": "Matrix messaging client",
+    "packageId": "Element.Element",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "discord.discord",
+    "name": "Discord",
+    "category": "Communication",
+    "description": "Voice, video and text chat",
+    "packageId": "Discord.Discord",
+    "license": "Proprietary",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "telegram.telegramdesktop",
+    "name": "Telegram Desktop",
+    "category": "Communication",
+    "description": "Desktop messaging client",
+    "packageId": "Telegram.TelegramDesktop",
+    "license": "Proprietary",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "blenderfoundation.blender",
+    "name": "Blender",
+    "category": "Creative",
+    "description": "3D creation suite",
+    "packageId": "BlenderFoundation.Blender",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "gimp.gimp",
+    "name": "GIMP",
+    "category": "Creative",
+    "description": "Image editor",
+    "packageId": "GIMP.GIMP",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "kde.krita",
+    "name": "Krita",
+    "category": "Creative",
+    "description": "Digital painting",
+    "packageId": "KDE.Krita",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "inkscape.inkscape",
+    "name": "Inkscape",
+    "category": "Creative",
+    "description": "Vector graphics editor",
+    "packageId": "Inkscape.Inkscape",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "obsproject.obsstudio",
+    "name": "OBS Studio",
+    "category": "Creative",
+    "description": "Recording and live streaming",
+    "packageId": "OBSProject.OBSStudio",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "audacity.audacity",
+    "name": "Audacity",
+    "category": "Creative",
+    "description": "Audio recording and editing",
+    "packageId": "Audacity.Audacity",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "kde.kdenlive",
+    "name": "Kdenlive",
+    "category": "Creative",
+    "description": "Non-linear video editor",
+    "packageId": "KDE.Kdenlive",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "meltytech.shotcut",
+    "name": "Shotcut",
+    "category": "Creative",
+    "description": "Video editor",
+    "packageId": "Meltytech.Shotcut",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "handbrake.handbrake",
+    "name": "HandBrake",
+    "category": "Creative",
+    "description": "Video transcoder",
+    "packageId": "HandBrake.HandBrake",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "darktable.darktable",
+    "name": "darktable",
+    "category": "Creative",
+    "description": "Photography workflow and RAW editor",
+    "packageId": "darktable.darktable",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "videolan.vlc",
+    "name": "VLC",
+    "category": "Media",
+    "description": "Media player",
+    "packageId": "VideoLAN.VLC",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "peterpawlowski.foobar2000",
+    "name": "foobar2000",
+    "category": "Media",
+    "description": "Audio player",
+    "packageId": "PeterPawlowski.foobar2000",
+    "license": "Freeware",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "7zip.7zip",
+    "name": "7-Zip",
+    "category": "Utilities",
+    "description": "File archiver",
+    "packageId": "7zip.7zip",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "giorgiotani.peazip",
+    "name": "PeaZip",
+    "category": "Utilities",
+    "description": "File archiver",
+    "packageId": "Giorgiotani.Peazip",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "sharex.sharex",
+    "name": "ShareX",
+    "category": "Utilities",
+    "description": "Screenshots and screen recording",
+    "packageId": "ShareX.ShareX",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "microsoft.powertoys",
+    "name": "Microsoft PowerToys",
+    "category": "Utilities",
+    "description": "Windows productivity utilities",
+    "packageId": "Microsoft.PowerToys",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "voidtools.everything",
+    "name": "Everything",
+    "category": "Utilities",
+    "description": "Fast file search",
+    "packageId": "voidtools.Everything",
+    "license": "Freeware",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "windirstat.windirstat",
+    "name": "WinDirStat",
+    "category": "Utilities",
+    "description": "Disk usage visualizer",
+    "packageId": "WinDirStat.WinDirStat",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "keepassxcteam.keepassxc",
+    "name": "KeePassXC",
+    "category": "Security",
+    "description": "Offline password manager",
+    "packageId": "KeePassXCTeam.KeePassXC",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "idrix.veracrypt",
+    "name": "VeraCrypt",
+    "category": "Security",
+    "description": "Disk encryption",
+    "packageId": "IDRIX.VeraCrypt",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "syncthing.syncthing",
+    "name": "Syncthing",
+    "category": "Security",
+    "description": "Peer-to-peer file synchronization",
+    "packageId": "Syncthing.Syncthing",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "wireguard.wireguard",
+    "name": "WireGuard",
+    "category": "Security",
+    "description": "Modern VPN tunnel",
+    "packageId": "WireGuard.WireGuard",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "thedocumentfoundation.libreoffice",
+    "name": "LibreOffice",
+    "category": "Documents",
+    "description": "Office suite",
+    "packageId": "TheDocumentFoundation.LibreOffice",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "sumatrapdf.sumatrapdf",
+    "name": "SumatraPDF",
+    "category": "Documents",
+    "description": "Lightweight document reader",
+    "packageId": "Sumatrapdf.SumatraPDF",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "calibre.calibre",
+    "name": "Calibre",
+    "category": "Documents",
+    "description": "E-book library manager",
+    "packageId": "calibre.calibre",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "joplin.joplin",
+    "name": "Joplin",
+    "category": "Documents",
+    "description": "Notes and to-do app",
+    "packageId": "Joplin.Joplin",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "corporationfordigitalscholarship.zotero",
+    "name": "Zotero",
+    "category": "Documents",
+    "description": "Research reference manager",
+    "packageId": "CorporationForDigitalScholarship.Zotero",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "microsoft.visualstudiocode",
+    "name": "Visual Studio Code",
+    "category": "Development",
+    "description": "Code editor",
+    "packageId": "Microsoft.VisualStudioCode",
+    "license": "Proprietary",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "vscodium.vscodium",
+    "name": "VSCodium",
+    "category": "Development",
+    "description": "Community-built VS Code binaries",
+    "packageId": "VSCodium.VSCodium",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "git.git",
+    "name": "Git",
+    "category": "Development",
+    "description": "Version control",
+    "packageId": "Git.Git",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "python.python.3.12",
+    "name": "Python 3.12",
+    "category": "Development",
+    "description": "Python programming language",
+    "packageId": "Python.Python.3.12",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "openjs.nodejs.lts",
+    "name": "Node.js LTS",
+    "category": "Development",
+    "description": "JavaScript runtime",
+    "packageId": "OpenJS.NodeJS.LTS",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "github.githubdesktop",
+    "name": "GitHub Desktop",
+    "category": "Development",
+    "description": "Git graphical client",
+    "packageId": "GitHub.GitHubDesktop",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "dbeaver.dbeaver",
+    "name": "DBeaver Community",
+    "category": "Development",
+    "description": "Database management",
+    "packageId": "dbeaver.dbeaver",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "wiresharkfoundation.wireshark",
+    "name": "Wireshark",
+    "category": "Development",
+    "description": "Network protocol analyzer",
+    "packageId": "WiresharkFoundation.Wireshark",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "godotengine.godotengine",
+    "name": "Godot Engine",
+    "category": "Development",
+    "description": "2D and 3D game engine",
+    "packageId": "GodotEngine.GodotEngine",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "freecad.freecad",
+    "name": "FreeCAD",
+    "category": "Creative",
+    "description": "Parametric 3D CAD",
+    "packageId": "FreeCAD.FreeCAD",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "qbittorrent.qbittorrent",
+    "name": "qBittorrent",
+    "category": "Internet",
+    "description": "BitTorrent client",
+    "packageId": "qBittorrent.qBittorrent",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "valve.steam",
+    "name": "Steam",
+    "category": "Gaming",
+    "description": "PC game library and launcher",
+    "packageId": "Valve.Steam",
+    "license": "Proprietary",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "prismlauncher.prismlauncher",
+    "name": "Prism Launcher",
+    "category": "Gaming",
+    "description": "Minecraft launcher",
+    "packageId": "prismlauncher.prismlauncher",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "playnite.playnite",
+    "name": "Playnite",
+    "category": "Gaming",
+    "description": "Unified game library",
+    "packageId": "Playnite.Playnite",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "localsend.localsend",
+    "name": "LocalSend",
+    "category": "Utilities",
+    "description": "Share files on nearby devices",
+    "packageId": "LocalSend.LocalSend",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "rustdesk.rustdesk",
+    "name": "RustDesk",
+    "category": "Utilities",
+    "description": "Remote desktop software",
+    "packageId": "RustDesk.RustDesk",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "kde.kdeconnect",
+    "name": "KDE Connect",
+    "category": "Utilities",
+    "description": "Connect phone and PC",
+    "packageId": "KDE.KDEConnect",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  },
+  {
+    "id": "inkscape.inkscape",
+    "name": "Inkscape Extensions Manager",
+    "category": "Creative",
+    "description": "Extensions helper for Inkscape",
+    "packageId": "inkscape.Inkscape",
+    "license": "Open source",
+    "source": "WinGet",
+    "installType": "winget"
+  }
+]
