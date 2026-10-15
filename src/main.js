@@ -5,7 +5,13 @@ const { spawn } = require("node:child_process");
 
 let mainWindow;
 const catalogPath = path.join(__dirname, "software.json");
-const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+const rawCatalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+const catalog = rawCatalog.map((item) => ({
+  ...item,
+  packageId: item.packageId || (item.method === "winget" ? item.id : null),
+  installType: item.installType || (item.method === "website" ? "website" : "winget"),
+  sourceUrl: item.sourceUrl || (item.method === "website" ? item.source : null)
+}));
 const byId = new Map(catalog.map((item) => [item.id, item]));
 
 function createWindow() {
@@ -58,6 +64,7 @@ ipcMain.handle("system:winget", async () => {
 
 ipcMain.handle("apps:installed", async () => {
   const results = await Promise.all(catalog.map(async (item) => {
+    if (!item.packageId || item.installType === "website") return null;
     const result = await runWinget(["list", "--id", item.packageId, "--exact", "--disable-interactivity"], 20000);
     const text = result.output.toLowerCase();
     const found = result.ok && text.includes(item.packageId.toLowerCase());
@@ -69,6 +76,11 @@ ipcMain.handle("apps:installed", async () => {
 ipcMain.handle("apps:install", async (_event, id, preferUserScope = true) => {
   const item = byId.get(id);
   if (!item) return { ok: false, error: "This application is not in the trusted catalog." };
+  if (item.installType === "website" && item.sourceUrl) {
+    await shell.openExternal(item.sourceUrl);
+    return { ok: true, appName: item.name, output: "Opened the official download page. Complete the installation there." };
+  }
+  if (!item.packageId) return { ok: false, appName: item.name, error: "No supported installation method is configured." };
   const args = ["install", "--id", item.packageId, "--exact", "--silent", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"];
   if (preferUserScope) args.push("--scope", "user");
   const result = await runWinget(args);
@@ -78,6 +90,7 @@ ipcMain.handle("apps:install", async (_event, id, preferUserScope = true) => {
 ipcMain.handle("apps:update", async (_event, id, preferUserScope = true) => {
   const item = byId.get(id);
   if (!item) return { ok: false, error: "This application is not in the trusted catalog." };
+  if (!item.packageId || item.installType === "website") return { ok: false, appName: item.name, error: "This application must be updated from its official website." };
   const args = ["upgrade", "--id", item.packageId, "--exact", "--silent", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"];
   if (preferUserScope) args.push("--scope", "user");
   const result = await runWinget(args);
