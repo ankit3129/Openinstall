@@ -4,13 +4,13 @@ const fs = require("node:fs");
 const { spawn } = require("node:child_process");
 
 let mainWindow;
-const catalogPath = path.join(__dirname, "software.json");
-const rawCatalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+const catalogParts = ["catalog-part1.json", "catalog-part2.json", "catalog-part3.json", "catalog-part4.json"];
+const rawCatalog = catalogParts.flatMap((file) =>
+  JSON.parse(fs.readFileSync(path.join(__dirname, file), "utf8"))
+);
 const catalog = rawCatalog.map((item) => ({
   ...item,
-  packageId: item.packageId || (item.method === "winget" ? item.id : null),
-  installType: item.installType || (item.method === "website" ? "website" : "winget"),
-  sourceUrl: item.sourceUrl || (item.method === "website" ? item.source : null)
+  sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null)
 }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
 
