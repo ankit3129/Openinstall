@@ -9,6 +9,8 @@ const profiles = [
   { name: "Open-source toolkit", description: "A selection of community-built apps.", ids: ["Blender","GIMP","Krita","VLC","7-Zip","LibreOffice","qBittorrent"] }
 ];
 const iconFor = (name) => name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+const logoUrlFor = (app) => { try { return "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(new URL(app.source).hostname) + "&sz=128"; } catch { return ""; } };
+const appIconMarkup = (app) => { const url = logoUrlFor(app); return '<div class="app-icon" aria-label="' + escapeHtml(app.name) + ' logo">' + (url ? '<img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<span>' + escapeHtml(iconFor(app.name)) + '</span></div>'; };
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 
 function renderCategories() {
@@ -34,7 +36,7 @@ function renderApps() {
     const selected = state.selected.has(app.id);
     const installed = state.installed.has(app.id);
     return '<article class="app-card ' + (selected ? "selected" : "") + '">' +
-      '<div class="app-card-top"><div class="app-icon">' + escapeHtml(iconFor(app.name)) + '</div><button class="select-app ' + (selected ? "checked" : "") + '" data-select="' + escapeHtml(app.id) + '" aria-label="Select ' + escapeHtml(app.name) + '">' + (selected ? "✓" : "+") + '</button></div>' +
+      '<div class="app-card-top">' + appIconMarkup(app) + '<button class="select-app ' + (selected ? "checked" : "") + '" data-select="' + escapeHtml(app.id) + '" aria-label="Select ' + escapeHtml(app.name) + '">' + (selected ? "✓" : "+") + '</button></div>' +
       '<div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' + (installed ? '<span class="installed-badge">Installed</span>' : "") + '</div>' +
       '<p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span>' + escapeHtml(app.category) + '</span><span class="license-tag">' + escapeHtml(app.license) + '</span></div></article>';
   }).join("");
@@ -102,7 +104,7 @@ function setView(view) {
     $("#app-grid").innerHTML = "";
     const installedApps = state.catalog.filter((app) => state.installed.has(app.id));
     $("#result-count").textContent = installedApps.length + " detected installed apps";
-    $("#app-grid").innerHTML = installedApps.map((app) => '<article class="app-card"><div class="app-icon">' + escapeHtml(iconFor(app.name)) + '</div><h3>' + escapeHtml(app.name) + '</h3><p class="app-description">' + escapeHtml(app.description) + '</p><span class="installed-badge">Installed</span></article>').join("");
+    $("#app-grid").innerHTML = installedApps.map((app) => '<article class="app-card">' + appIconMarkup(app) + '<h3>' + escapeHtml(app.name) + '</h3><p class="app-description">' + escapeHtml(app.description) + '</p><span class="installed-badge">Installed</span></article>').join("");
     $("#empty-state").classList.toggle("hidden", installedApps.length > 0);
   }
 }
