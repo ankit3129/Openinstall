@@ -82,7 +82,7 @@ Issues and pull requests are welcome. For catalog changes, include official sour
 
 - Expand and automatically validate catalog entries.
 - Improve installation progress and failure recovery.
-- Add persistent setup recipes and a dedicated update center.
+- Improve the in-app update experience and update diagnostics.
 - Add screenshots, tests, signed releases, and contributor guidance.
 
 ## License
