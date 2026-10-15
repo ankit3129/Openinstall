@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -10,22 +10,46 @@ const rawCatalog = catalogParts.flatMap((file) => JSON.parse(fs.readFileSync(pat
 const catalog = rawCatalog.map((item) => ({ ...item, sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null) }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
 
-function configureAutoUpdates() {
-  if (!app.isPackaged) return;
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on("error", (error) => console.error("OpenInstall update check failed:", error.message));
-  autoUpdater.on("update-downloaded", async (info) => {
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: "info", title: "OpenInstall update ready",
-      message: "OpenInstall " + info.version + " is ready to install.",
-      detail: "Save any work in OpenInstall. The app will restart to finish updating.",
-      buttons: ["Restart and update", "Later"], defaultId: 0, cancelId: 1, noLink: true
-    });
-    if (result.response === 0) autoUpdater.quitAndInstall();
-  });
-  autoUpdater.checkForUpdatesAndNotify().catch((error) => console.error("Could not check for OpenInstall updates:", error.message));
+// ---------- Auto updates ----------
+const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const packageInfo = require("../package.json");
+const publishConfig = ((packageInfo.build && packageInfo.build.publish) || [])[0] || {};
+const releasePageFor = (version) => publishConfig.owner && publishConfig.repo && version
+  ? "https://github.com/" + publishConfig.owner + "/" + publishConfig.repo + "/releases/tag/v" + version : null;
+let updateState = { state: "idle", version: null, percent: 0, message: "" };
+let manualCheck = false;
+function publicUpdateState() { return { ...updateState, currentVersion: app.getVersion(), packaged: app.isPackaged, releaseUrl: releasePageFor(updateState.version) }; }
+function setUpdateState(patch) { updateState = { ...updateState, ...patch }; if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("update:status", publicUpdateState()); }
+function simulateUpdate() {
+  const version = "99.0.0"; setUpdateState({ state: "downloading", version, percent: 0 }); let percent = 0;
+  const timer = setInterval(() => { percent += 10; if (percent >= 100) { clearInterval(timer); setUpdateState({ state: "ready", version, percent: 100 }); } else setUpdateState({ percent }); }, 400);
 }
+function configureAutoUpdates() {
+  if (!app.isPackaged) { if (process.env.OPENINSTALL_SIMULATE_UPDATE) setTimeout(simulateUpdate, 2500); return; }
+  autoUpdater.autoDownload = true; autoUpdater.autoInstallOnAppQuit = true; autoUpdater.allowPrerelease = false;
+  autoUpdater.on("checking-for-update", () => { if (manualCheck) setUpdateState({ state: "checking", message: "" }); });
+  autoUpdater.on("update-available", (info) => setUpdateState({ state: "downloading", version: info.version, percent: 0, message: "" }));
+  autoUpdater.on("download-progress", (progress) => setUpdateState({ state: "downloading", percent: Math.round(progress.percent || 0) }));
+  autoUpdater.on("update-downloaded", (info) => setUpdateState({ state: "ready", version: info.version, percent: 100, message: "" }));
+  autoUpdater.on("update-not-available", () => { if (manualCheck) setUpdateState({ state: "uptodate", message: "" }); manualCheck = false; });
+  autoUpdater.on("error", (error) => handleUpdateError(error));
+  setTimeout(() => checkForUpdates(false), 5000); setInterval(() => checkForUpdates(false), UPDATE_INTERVAL_MS).unref();
+}
+function handleUpdateError(error) {
+  console.error("OpenInstall update problem:", error && error.message);
+  if (manualCheck) setUpdateState({ state: "error", message: "Could not check for updates. Check your internet connection and try again." });
+  else if (updateState.state === "downloading" || updateState.state === "checking") setUpdateState({ state: "idle", percent: 0 });
+  manualCheck = false;
+}
+async function checkForUpdates(manual) {
+  if (!app.isPackaged) { if (manual) setUpdateState({ state: "uptodate", message: "" }); return publicUpdateState(); }
+  if (updateState.state === "downloading" || updateState.state === "ready") return publicUpdateState();
+  manualCheck = manual;
+  if (updateState.state === "error" || updateState.state === "uptodate") setUpdateState({ state: "idle", message: "" });
+  try { await autoUpdater.checkForUpdates(); } catch (error) { if (updateState.state !== "error") handleUpdateError(error); }
+  return publicUpdateState();
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320, height: 860, minWidth: 980, minHeight: 680, backgroundColor: "#0b1020", title: "OpenInstall",
@@ -48,6 +72,9 @@ function runWinget(args, timeoutMs = 10 * 60 * 1000) {
   });
 }
 ipcMain.handle("catalog:list", () => catalog);
+ipcMain.handle("update:state", () => publicUpdateState());
+ipcMain.handle("update:check", () => checkForUpdates(true));
+ipcMain.handle("update:install", () => { if (updateState.state !== "ready") return { ok: false }; if (!app.isPackaged) return { ok: true, simulated: true }; setImmediate(() => autoUpdater.quitAndInstall(true, true)); return { ok: true }; });
 ipcMain.handle("system:winget", async () => { const result = await runWinget(["--version"], 15000); return { available: result.ok, version: result.output.trim(), message: result.ok ? "WinGet is ready" : "WinGet was not found. Update App Installer from Microsoft Store." }; });
 ipcMain.handle("apps:installed", async () => {
   const queue = catalog.filter((item) => item.packageId && item.installType !== "website"); const found = []; let next = 0;
