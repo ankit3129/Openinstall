@@ -1,0 +1,39 @@
+{
+  "name": "openinstall",
+  "version": "0.4.0",
+  "description": "Open-source-first bulk software installer for Windows",
+  "productName": "OpenInstall",
+  "main": "src/main.js",
+  "author": "OpenInstall contributors",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "org.openinstall.desktop",
+    "productName": "OpenInstall",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": ["src/**/*", "package.json"],
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "OpenInstall-${version}-Setup.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
