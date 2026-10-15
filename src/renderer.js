@@ -140,6 +140,41 @@ document.addEventListener("click", async (event) => {
 $("#search-input").addEventListener("input", renderApps); $("#category-filter").addEventListener("change", renderApps); $("#license-filter").addEventListener("change", renderApps);
 $("#selection-button").addEventListener("click", installSelected); $("#refresh-btn").addEventListener("click", refreshInstalled);
 $("#clear-queue").addEventListener("click", () => { $("#queue-panel").classList.add("hidden"); $("#queue-list").innerHTML = ""; });
+// ---------- Update banner ----------
+let dismissedUpdate = null;
+let checkLabelTimer;
+function renderUpdate(status) {
+  if (!status) return;
+  const banner = $("#update-banner");
+  const show = (el, on) => el.classList.toggle("hidden", !on);
+  $("#app-version").textContent = status.currentVersion ? "v" + status.currentVersion : "";
+  const button = $("#check-updates");
+  clearTimeout(checkLabelTimer);
+  button.disabled = status.state === "checking" || status.state === "downloading";
+  button.textContent = status.state === "checking" ? "Checking…" : status.state === "uptodate" ? "Up to date ✓" : "Check for updates";
+  if (status.state === "uptodate") checkLabelTimer = setTimeout(() => { button.textContent = "Check for updates"; }, 4000);
+  const downloading = status.state === "downloading", ready = status.state === "ready", failed = status.state === "error";
+  const hidden = ready && dismissedUpdate === status.version;
+  const visible = (downloading || ready || failed) && !hidden;
+  show(banner, visible); banner.classList.toggle("error", failed);
+  if (!visible) return;
+  $("#update-title").textContent = failed ? "Update check failed" : ready ? "OpenInstall " + status.version + " is ready" : "Downloading OpenInstall " + (status.version || "update") + "…";
+  $("#update-detail").textContent = failed ? status.message : ready ? "Restart to finish updating. It also installs automatically when you close the app." : (status.percent || 0) + "% — you can keep using OpenInstall";
+  show($("#update-progress"), downloading); $("#update-progress").value = status.percent || 0;
+  show($("#update-restart"), ready); show($("#update-dismiss"), ready || failed);
+  show($("#update-notes"), (ready || downloading) && Boolean(status.releaseUrl));
+  banner.dataset.releaseUrl = status.releaseUrl || ""; banner.dataset.version = status.version || "";
+}
+$("#check-updates").addEventListener("click", async () => { dismissedUpdate = null; renderUpdate(await window.openInstall.checkForUpdates()); });
+$("#update-dismiss").addEventListener("click", () => { dismissedUpdate = $("#update-banner").dataset.version || null; $("#update-banner").classList.add("hidden"); });
+$("#update-notes").addEventListener("click", () => { const url = $("#update-banner").dataset.releaseUrl; if (url) window.openInstall.openExternal(url); });
+$("#update-restart").addEventListener("click", async () => {
+  if (state.busy && !confirm("Installations are still running. Restarting now may interrupt them. Restart and update anyway?")) return;
+  await window.openInstall.installUpdate();
+});
+window.openInstall.onUpdateStatus(renderUpdate);
+window.openInstall.getUpdateState().then(renderUpdate).catch(() => {});
+
 (async function init() {
   state.catalog = await window.openInstall.getCatalog(); renderCategories(); renderProfiles(); renderApps();
   const status = await window.openInstall.checkWinget(); $("#winget-status").textContent = status.available ? "WinGet " + status.version : status.message;
