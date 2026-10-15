@@ -32,7 +32,8 @@
         "nsis"
       ],
       "artifactName": "OpenInstall-${version}-Setup.${ext}",
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
