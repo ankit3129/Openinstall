@@ -44,7 +44,7 @@ jobs:
           node-version: 22
       - name: Install dependencies with npm 10
         run: npx --yes npm@10 install
-      - name: Check JavaScript syntax and catalog
+      - name: Check JavaScript syntax and validate catalog
         run: npx --yes npm@10 run check
       - name: Build Windows setup
         run: npx --yes npm@10 run dist:win
@@ -55,10 +55,11 @@ jobs:
           path: release/*.exe
           if-no-files-found: error
       - name: Publish installer and updater metadata
-        if: startsWith(inputs.release_tag || github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') || github.event_name == 'release'
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          tag_name: ${{ inputs.release_tag || github.event.release.tag_name }}
           files: |
             release/*.exe
-            release/*.yml
+            release/*.exe.blockmap
+            release/latest.yml
