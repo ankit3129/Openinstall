@@ -6,3 +6,18 @@
 .update-banner progress::-webkit-progress-bar{background:#2a3350}.update-banner progress::-webkit-progress-value{background:var(--accent2);transition:width .25s}
 .update-actions{display:flex;align-items:center;gap:10px}.update-actions .primary-button{padding:8px 13px;font-size:12px}
 .version-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:8px;color:#8190ab}.version-row .text-button{font-size:10px;padding:0}.version-row .text-button:disabled{opacity:.6;cursor:default}
+
+/* v0.7 additions */
+.catalog-options{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.catalog-warning{margin:0 0 14px;padding:10px 12px;border:1px solid #6b3a47;border-radius:10px;background:#2a1720;color:#ffb4c1;font-size:11px;line-height:1.5}
+.app-icon span.emoji{font-size:23px;font-weight:400;letter-spacing:0}
+.queue-status.opened{background:#1f2a52;color:#9fb4ff}
+.queue-status.skipped{background:#222a3d;color:var(--muted)}
+.queue-status.pending{background:#2f2a52;color:#b5aaff;animation:oi-pulse 1.1s ease-in-out infinite}
+.queue-info small.queue-details{color:#7d89a6;font-style:italic}
+.update-app{border:1px solid #3b4761;background:#171f34;color:#cfd6ea;border-radius:9px;padding:5px 10px;font:inherit;font-size:11px;cursor:pointer}
+.update-app:hover:not(:disabled){border-color:#8e80ff;color:#fff}
+.update-app:disabled{opacity:.6;cursor:default}
+.app-card{content-visibility:auto;contain-intrinsic-size:auto 168px}
+@keyframes oi-pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.queue-status.pending{animation:none}}

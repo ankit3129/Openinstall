@@ -16,8 +16,9 @@ concurrency:
   group: openinstall-windows-build
   cancel-in-progress: false
 
+# Read-only by default; only the publish job below gets write access.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -43,19 +44,42 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies with npm 10
-        run: npx --yes npm@10 install
-      - name: Check JavaScript syntax and validate catalog
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npx --yes npm@10 ci
+          else
+            echo "::warning::package-lock.json is not committed, so dependency versions are not pinned. Run 'npm install' locally and commit the lockfile."
+            npx --yes npm@10 install
+          fi
+      - name: Check JavaScript syntax, validate catalog, run tests
         run: npx --yes npm@10 run check
       - name: Build Windows setup
         run: npx --yes npm@10 run dist:win
-      - name: Upload setup artifact
+      - name: Upload installer and updater metadata
         uses: actions/upload-artifact@v4
         with:
           name: OpenInstall-Windows-Setup
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
           if-no-files-found: error
+
+  publish:
+    needs: build
+    if: (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') || github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: OpenInstall-Windows-Setup
+          path: release
       - name: Publish installer and updater metadata
-        if: (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') || github.event_name == 'release'
+        # Consider pinning this to a commit SHA, since this job can write to the repository.
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag || github.event.release.tag_name }}

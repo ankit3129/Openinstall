@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://icons.duckduckgo.com https://www.google.com https://icon.horse;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://icons.duckduckgo.com https://www.google.com https://*.gstatic.com https://icon.horse https://github.com https://avatars.githubusercontent.com; base-uri 'none'; object-src 'none'; form-action 'none';">
   <title>OpenInstall</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -35,7 +35,8 @@
         <select id="license-filter" aria-label="Filter by license"><option value="all">All licenses</option><option>Open source</option><option>Freeware</option><option>Proprietary</option></select>
       </section>
       <section id="profiles-panel" class="profiles-panel hidden"></section>
-      <section class="catalog-heading"><div><h3 id="section-title">Popular picks</h3><p id="result-count">Loading catalog…</p></div><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label></section>
+      <section class="catalog-heading"><div><h3 id="section-title">Popular picks</h3><p id="result-count">Loading catalog…</p></div><div class="catalog-options"><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label><label class="scope-toggle" title="Off by default. Turning this on requests each logo from Google, DuckDuckGo or GitHub, which reveals which apps you are browsing."><input id="web-logos" type="checkbox"><span>Fetch app logos online</span></label></div></section>
+      <p id="catalog-warning" class="catalog-warning hidden" role="alert"></p>
       <section id="app-grid" class="app-grid"></section>
       <section id="empty-state" class="empty-state hidden"><div>⌕</div><h3>No apps found</h3><p>Try a different search or category.</p></section>
       <section id="queue-panel" class="queue-panel hidden"><div class="queue-head"><div><h3>Installation queue</h3><p id="queue-summary">Preparing selected apps…</p></div><button id="clear-queue" class="text-button">Clear results</button></div><div id="queue-list"></div></section>

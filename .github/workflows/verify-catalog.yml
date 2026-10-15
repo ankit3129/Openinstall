@@ -1,0 +1,27 @@
+name: Verify WinGet package IDs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+  pull_request:
+    paths:
+      - "src/catalog-part*.json"
+      - "scripts/verify-winget-ids.js"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Show WinGet version
+        shell: pwsh
+        run: winget --version
+      - name: Check that every catalog package ID exists
+        run: node scripts/verify-winget-ids.js

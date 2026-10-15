@@ -1,6 +1,6 @@
 {
   "name": "openinstall",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Open-source-first bulk software installer for Windows",
   "productName": "OpenInstall",
   "main": "src/main.js",
@@ -8,11 +8,13 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js && node scripts/validate-catalog.js",
+    "test": "node scripts/test.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js && node --check src/winget-utils.js && node --check src/catalog-loader.js && node scripts/validate-catalog.js && node scripts/test.js",
+    "verify:winget": "node scripts/verify-winget-ids.js",
     "dist:win": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
-    "electron": "38.8.6",
+    "electron": "44.4.5",
     "electron-builder": "^26.0.12"
   },
   "build": {
@@ -24,7 +26,6 @@
     },
     "files": [
       "src/**/*",
-      "scripts/**/*",
       "package.json"
     ],
     "win": {

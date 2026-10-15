@@ -14,10 +14,14 @@ if errorlevel 1 (
   exit /b 1
 )
 echo Step 1 of 3: install dependencies using npm 10...
-call npx --yes npm@10 install
+if exist package-lock.json (
+  call npx --yes npm@10 ci
+) else (
+  call npx --yes npm@10 install
+)
 if errorlevel 1 goto failed
 echo.
-echo Step 2 of 3: syntax check...
+echo Step 2 of 3: syntax check, catalog validation and tests...
 call npx --yes npm@10 run check
 if errorlevel 1 goto failed
 echo.
