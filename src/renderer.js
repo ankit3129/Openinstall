@@ -15,7 +15,7 @@ try { webLogos = localStorage.getItem(LOGO_KEY) === "1"; } catch {}
 // Bundled logos (src/logos/<id>.png, created by `npm run fetch:logos`) are always tried first: they are local files, so they cost no privacy.
 // A missing file just falls through to the next URL, and finally to the emoji / initials.
 const logoUrlsFor = (app) => {
-  const urls = ["logos/" + encodeURIComponent(app.id) + ".png"];
+  const urls = app.hasLogo ? ["logos/" + encodeURIComponent(app.id) + ".png"] : [];
   if (!webLogos) return urls;
   try {
     const site = new URL(app.source);

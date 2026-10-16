@@ -10,6 +10,7 @@ for (const { file, index, item } of entries) {
   const where = file + "[" + index + "] " + ((item && item.id) || "?");
   if (!item || typeof item !== "object") { errors.push(where + ": entry is not an object"); continue; }
   for (const key of ["id", "name", "category", "description", "license", "source", "installType", "icon"]) if (!item[key] || typeof item[key] !== "string") errors.push(where + ": missing " + key);
+  if (item.id && !/^[a-z0-9][a-z0-9._-]*$/i.test(item.id)) errors.push(where + ": id may only contain letters, digits, dot, dash and underscore (it is used as a logo file name)");
   if (item.id) { if (ids.has(item.id)) errors.push(where + ": duplicate id (also " + ids.get(item.id) + ")"); ids.set(item.id, file); }
   if (item.license && !LICENSES.has(item.license)) errors.push(where + ": unknown license label " + item.license);
   if (item.source && !/^https:\/\//.test(item.source)) errors.push(where + ": source must be https");

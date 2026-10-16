@@ -21,7 +21,9 @@ const loaded = loadCatalog(__dirname);
 const loadedProfiles = loadProfiles(__dirname);
 const catalogWarnings = [...loaded.errors, ...(loadedProfiles.error ? [loadedProfiles.error] : [])];
 catalogWarnings.forEach((warning) => console.error("Catalog problem:", warning));
-const catalog = loaded.entries.map(({ item }) => ({ ...item, sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null) }));
+// Which bundled logos exist (src/logos/<id>.png) is checked once here, so the window never requests files that are not there.
+const hasLogoFile = (id) => /^[a-z0-9][a-z0-9._-]*$/i.test(String(id)) && fs.existsSync(path.join(__dirname, "logos", id + ".png"));
+const catalog = loaded.entries.map(({ item }) => ({ ...item, sourceUrl: item.sourceUrl || (item.installType === "website" ? item.source : null), hasLogo: hasLogoFile(item.id) }));
 const byId = new Map(catalog.map((item) => [item.id, item]));
 const profiles = loadedProfiles.profiles;
 

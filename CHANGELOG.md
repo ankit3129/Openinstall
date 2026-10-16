@@ -20,6 +20,7 @@
 - The window now uses `src/icon.png`.
 
 ### Performance
+- The window only requests bundled logos that actually exist (the main process checks `src/logos/` once at startup), instead of failing about 209 image loads on every render when no logos are bundled.
 - Every WinGet call uses `--source winget` (skips the Microsoft Store source).
 - The queue no longer finishes with a full `winget export` rescan; installed/updated state is updated locally.
 - CI: fast checks on every push, the Windows installer only for releases and manual runs; npm cache enabled; `npm ci` instead of `npx npm@10`.
