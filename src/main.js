@@ -45,7 +45,7 @@ function configureAutoUpdates() {
   if (!app.isPackaged) { if (process.env.OPENINSTALL_SIMULATE_UPDATE) setTimeout(simulateUpdate, 2500); return; }
   autoUpdater.autoDownload = true; autoUpdater.autoInstallOnAppQuit = true; autoUpdater.allowPrerelease = false;
   autoUpdater.on("checking-for-update", () => { if (manualCheck) setUpdateState({ state: "checking", message: "" }); });
-  autoUpdater.on("update-available", (info) => setUpdateState({ state: "downloading", version: info.version, percent: 0, message: "" }));
+  autoUpdater.on("update-available", (info) => { manualCheck = false; setUpdateState({ state: "downloading", version: info.version, percent: 0, message: "" }); });
   autoUpdater.on("download-progress", (progress) => setUpdateState({ state: "downloading", percent: Math.round(progress.percent || 0) }));
   autoUpdater.on("update-downloaded", (info) => setUpdateState({ state: "ready", version: info.version, percent: 100, message: "" }));
   autoUpdater.on("update-not-available", () => { if (manualCheck) setUpdateState({ state: "uptodate", message: "" }); manualCheck = false; });
@@ -61,7 +61,7 @@ function handleUpdateError(error) {
 async function checkForUpdates(manual) {
   if (!app.isPackaged) { if (manual) setUpdateState({ state: "uptodate", message: "" }); return publicUpdateState(); }
   if (updateState.state === "downloading" || updateState.state === "ready") return publicUpdateState();
-  manualCheck = manual;
+  manualCheck = manualCheck || manual; // a background check must not cancel the feedback of a manual one that is still running
   if (updateState.state === "error" || updateState.state === "uptodate") setUpdateState({ state: "idle", message: "" });
   try { await autoUpdater.checkForUpdates(); } catch (error) { if (updateState.state !== "error") handleUpdateError(error); }
   return publicUpdateState();
@@ -198,7 +198,8 @@ function describe(result, verdict, extra) {
     status: ok ? "success" : "failure",
     message: verdict.message + (extra || ""),
     details: ok ? "" : winget.tailOutput(result.output),
-    rebootRequired: Boolean(verdict.rebootRequired)
+    rebootRequired: Boolean(verdict.rebootRequired),
+    upToDate: Boolean(verdict.upToDate)
   };
 }
 

@@ -359,9 +359,9 @@ async function runQueue(action, ids, label) {
     queueRows = [{ name: "OpenInstall", status: "failure", message: (outcome && outcome.error) || "The queue could not run." }];
     renderQueue(queueRows, "Could not run the queue", "Something went wrong");
   } else {
-    const counts = { installed: 0, updated: 0, opened: 0, already: 0, cancelled: 0, failed: 0, reboot: 0 };
+    const counts = { installed: 0, updated: 0, current: 0, opened: 0, already: 0, cancelled: 0, failed: 0, reboot: 0 };
     queueRows = outcome.results.map((r) => {
-      if (r.status === "success") { if (action === "update") counts.updated++; else counts.installed++; if (r.rebootRequired) counts.reboot++; }
+      if (r.status === "success") { if (r.upToDate) counts.current++; else if (action === "update") counts.updated++; else counts.installed++; if (r.rebootRequired) counts.reboot++; }
       else if (r.status === "opened") counts.opened++;
       else if (r.status === "skipped") { if (r.reason === "cancelled") counts.cancelled++; else counts.already++; }
       else { counts.failed++; failedIds.push(r.id); }
@@ -374,6 +374,7 @@ async function runQueue(action, ids, label) {
     const parts = [];
     if (counts.installed) parts.push(counts.installed + " installed");
     if (counts.updated) parts.push(counts.updated + " updated");
+    if (counts.current) parts.push(counts.current + " already up to date");
     if (counts.opened) parts.push(counts.opened + " download " + (counts.opened === 1 ? "page" : "pages") + " opened");
     if (counts.already) parts.push(counts.already + " already installed");
     if (counts.cancelled) parts.push(counts.cancelled + " cancelled");

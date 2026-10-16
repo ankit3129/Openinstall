@@ -164,3 +164,10 @@ test("killTree resolves only after the child has exited", async () => {
   }
   console.log(passed + " tests passed" + (process.exitCode ? ", with failures" : "") + ".");
 })();
+
+test("upgrade parsing: truncated ids match only when unambiguous", () => {
+  const w = require("../src/winget-utils");
+  const ids = ["microsoft.visualstudiocode", "jetbrains.intellijidea.community", "jetbrains.intellijidea.ultimate", "git.git"];
+  const out = "Visual Studio Code  Microsoft.VisualStudioC…  1.9  1.95  winget\nIntelliJ  JetBrains.IntelliJIDEA.…  1  2  winget\nGit  Git.Git  1  2  winget";
+  assert.deepStrictEqual([...w.parseUpgradeOutput(out, ids)].sort(), ["git.git", "microsoft.visualstudiocode"]);
+});
