@@ -77,11 +77,11 @@ function capAppend(buffer, chunk, max = 64 * 1024) {
   return next.length > max ? next.slice(next.length - max) : next;
 }
 
+// Only retry without `--scope user` when WinGet says, by exit code, that no installer fits. Matching words in the output
+// (e.g. "scope") also fired on unrelated failures and silently turned a per-user install into an elevated one.
 function isScopeFallback(result) {
   if (!result || result.ok) return false;
-  const c = normalizeCode(result.code);
-  if (c === CODES.NO_APPLICABLE_INSTALLER) return true;
-  return /no applicable installer|scope/i.test(result.output || "");
+  return normalizeCode(result.code) === CODES.NO_APPLICABLE_INSTALLER;
 }
 
 // Turn a raw runWinget() result for `winget install` into a user-facing verdict.
@@ -122,4 +122,34 @@ function parseExportJson(text) {
   }
 }
 
-module.exports = { CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, interpretUpgrade, parseExportJson };
+
+// Some catalog entries pin a major version (Python.Python.3.13, GIMP.GIMP.3 ...). A user with 3.14 installed would show
+// as "not installed". An entry may add `detectRegex` (matched against the lowercase package id) to recognise the whole family.
+// Returns the lowercase package id that is actually installed, or null.
+function matchInstalled(item, installedIds) {
+  if (!item || !item.packageId || !installedIds) return null;
+  const exact = item.packageId.toLowerCase();
+  if (installedIds.has(exact)) return exact;
+  if (item.detectRegex) {
+    let re; try { re = new RegExp(item.detectRegex); } catch { return null; }
+    for (const id of installedIds) if (re.test(id)) return id;
+  }
+  return null;
+}
+
+// `winget upgrade` prints a localized table, but package ids are never localized, so find known ids as whole tokens.
+// Returns a Set of lowercase ids that appear. Truncated ids ("Foo.Bar…") will not match, which only means a missed badge.
+function parseUpgradeOutput(text, ids) {
+  const found = new Set();
+  const wanted = new Set([...ids].map((id) => String(id).toLowerCase()));
+  for (const line of String(text || "").split(/\r?\n/)) {
+    for (const token of line.toLowerCase().split(/[\s|]+/)) if (wanted.has(token)) found.add(token);
+  }
+  return found;
+}
+
+// Every WinGet call pins the community source: it skips initialising the msstore source (faster, and it works where the Store is
+// unavailable) and guarantees the catalog ids are resolved against the repository they were verified in.
+const SOURCE_ARGS = Object.freeze(["--source", "winget"]);
+
+module.exports = { matchInstalled, parseUpgradeOutput, SOURCE_ARGS, CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, interpretUpgrade, parseExportJson };

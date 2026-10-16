@@ -9,11 +9,14 @@ on:
         type: string
   push:
     branches: [main]
+  pull_request:
   release:
     types: [published]
 
+# One group per release tag / branch. A shared group let a later push replace a *pending* release build,
+# which published a release without its installer and latest.yml (so auto-update broke for that version).
 concurrency:
-  group: openinstall-windows-build
+  group: openinstall-${{ inputs.release_tag || github.event.release.tag_name || github.ref }}
   cancel-in-progress: false
 
 # Read-only by default; only the publish job below gets write access.
@@ -21,13 +24,33 @@ permissions:
   contents: read
 
 jobs:
+  # Fast checks on every push and pull request. The Windows installer is only built for releases and manual runs.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || '' }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (skip the Electron binary download, the checks do not need it)
+        run: npm ci --ignore-scripts
+      - name: Check JavaScript syntax, validate catalog, run tests
+        run: npm run check
+
   build:
+    needs: check
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || '' }}
       - name: Verify release tag matches package.json version
         if: github.event_name == 'release' || inputs.release_tag != ''
         shell: bash
@@ -43,19 +66,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies with npm 10
-        shell: bash
-        run: |
-          if [ -f package-lock.json ]; then
-            npx --yes npm@10 ci
-          else
-            echo "::warning::package-lock.json is not committed, so dependency versions are not pinned. Run 'npm install' locally and commit the lockfile."
-            npx --yes npm@10 install
-          fi
-      - name: Check JavaScript syntax, validate catalog, run tests
-        run: npx --yes npm@10 run check
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Build Windows setup
-        run: npx --yes npm@10 run dist:win
+        # If the repository has these two secrets, electron-builder signs the installer automatically.
+        # After the first signed release, also set build.win.publisherName in package.json so the updater rejects unsigned updates.
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: npm run dist:win
       - name: Upload installer and updater metadata
         uses: actions/upload-artifact@v4
         with:
@@ -78,12 +98,9 @@ jobs:
         with:
           name: OpenInstall-Windows-Setup
           path: release
-      - name: Publish installer and updater metadata
-        # Consider pinning this to a commit SHA, since this job can write to the repository.
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag || github.event.release.tag_name }}
-          files: |
-            release/*.exe
-            release/*.exe.blockmap
-            release/latest.yml
+      - name: Attach installer and updater metadata to the release
+        # The GitHub CLI is preinstalled on runners. Using it instead of a third-party action means no outside code runs with write access.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+        run: gh release upload "$TAG" release/*.exe release/*.exe.blockmap release/latest.yml --clobber --repo "$GITHUB_REPOSITORY"

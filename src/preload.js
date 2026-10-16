@@ -6,8 +6,14 @@ contextBridge.exposeInMainWorld("openInstall", Object.freeze({
   getCatalogWarnings: () => ipcRenderer.invoke("catalog:warnings"),
   checkWinget: () => ipcRenderer.invoke("system:winget"),
   getInstalled: () => ipcRenderer.invoke("apps:installed"),
-  installApp: (id, preferUserScope) => ipcRenderer.invoke("apps:install", id, preferUserScope),
-  updateApp: (id) => ipcRenderer.invoke("apps:update", id),
+  getUpgradable: () => ipcRenderer.invoke("apps:upgradable"),
+  runQueue: (request) => ipcRenderer.invoke("queue:run", request),
+  cancelQueue: () => ipcRenderer.invoke("queue:cancel"),
+  onQueueProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on("queue:progress", handler);
+    return () => ipcRenderer.removeListener("queue:progress", handler);
+  },
   openExternal: (url) => ipcRenderer.invoke("external:open", url),
   getUpdateState: () => ipcRenderer.invoke("update:state"),
   checkForUpdates: () => ipcRenderer.invoke("update:check"),

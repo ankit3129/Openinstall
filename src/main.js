@@ -2,9 +2,9 @@ const { app, BrowserWindow, ipcMain, shell, dialog, session } = require("electro
 const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const fs = require("node:fs");
-const { spawn } = require("node:child_process");
 const { loadCatalog, loadProfiles } = require("./catalog-loader");
 const winget = require("./winget-utils");
+const { createRunner } = require("./winget-runner");
 
 let mainWindow;
 let allowClose = false; // set true when the updater restarts the app, so the "installs running" prompt is skipped
@@ -68,7 +68,7 @@ async function checkForUpdates(manual) {
 // ---------- Window ----------
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1320, height: 860, minWidth: 980, minHeight: 680, backgroundColor: "#0b1020", title: "OpenInstall",
+    width: 1320, height: 860, minWidth: 980, minHeight: 680, backgroundColor: "#0b1020", title: "OpenInstall", icon: path.join(__dirname, "icon.png"),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -88,45 +88,9 @@ function createWindow() {
 }
 
 // ---------- WinGet runner ----------
-const MAX_CAPTURED_OUTPUT = 64 * 1024;
-const activeChildren = new Set();
-let activeOps = 0;
-
-function killTree(child) {
-  if (!child || child.exitCode !== null) return;
-  try {
-    // child.kill() on Windows only ends winget.exe, not the installer it launched, so kill the whole tree.
-    if (process.platform === "win32" && child.pid) spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }).on("error", () => {});
-    else child.kill();
-  } catch {}
-}
-
-function runWinget(args, timeoutMs = 10 * 60 * 1000) {
-  return new Promise((resolve) => {
-    let child;
-    try { child = spawn("winget", args, { windowsHide: true, shell: false }); }
-    catch (error) { resolve({ ok: false, code: null, output: "", error: error.message }); return; }
-    activeChildren.add(child);
-    let stdout = "", stderr = "", settled = false;
-    const combined = () => (stdout + "\n" + stderr).trim();
-    const finish = (result) => { if (settled) return; settled = true; clearTimeout(timer); activeChildren.delete(child); resolve(result); };
-    const timer = setTimeout(() => { killTree(child); finish({ ok: false, code: null, output: combined(), error: "Timed out waiting for WinGet." }); }, timeoutMs);
-    child.stdout.setEncoding("utf8"); child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => { stdout = winget.capAppend(stdout, chunk, MAX_CAPTURED_OUTPUT); });
-    child.stderr.on("data", (chunk) => { stderr = winget.capAppend(stderr, chunk, MAX_CAPTURED_OUTPUT); });
-    child.on("error", (error) => finish({ ok: false, code: null, output: combined(), error: error.code === "ENOENT" ? "WinGet was not found." : error.message }));
-    child.on("close", (code) => finish({ ok: code === 0, code, output: combined(), error: code === 0 ? null : "WinGet exited with code " + code }));
-  });
-}
-
-// Installs and updates run one at a time; two overlapping winget installs fight over the installer lock.
-let opChain = Promise.resolve();
-function runExclusive(task) {
-  activeOps++;
-  const run = opChain.then(task);
-  opChain = run.catch(() => {});
-  return run.finally(() => { activeOps--; });
-}
+const runner = createRunner();
+const runWinget = runner.run;
+let activeOps = 0; // > 0 while a queue is running; used by the close prompt and to keep scans away from running installs
 
 let wingetOk = null;
 async function checkWinget() {
@@ -137,34 +101,72 @@ async function checkWinget() {
 async function ensureWinget() { return wingetOk === true || (await checkWinget()).available; }
 
 // ---------- Installed-app detection ----------
-let installedCache = [];
+// installedMap: catalog id -> lowercase package id that is really installed (may differ from the catalog's pinned id, see detectRegex).
+let installedMap = new Map();
 let installedPromise = null;
+let upgradableCache = null; // array of catalog ids, or null when unknown
+let upgradablePromise = null;
 const WINGET_COMMON = ["--accept-source-agreements", "--disable-interactivity"];
+const SRC = winget.SOURCE_ARGS;
+const installedIds = () => [...installedMap.keys()];
 
 // Fast path: one `winget export` call lists every package winget recognises.
 async function scanViaExport() {
   const file = path.join(app.getPath("temp"), "openinstall-export-" + process.pid + "-" + Date.now() + ".json");
   try {
-    await runWinget(["export", "-o", file, ...WINGET_COMMON], 120000); // exit code can be non-zero even when the file is written
+    await runWinget(["export", "-o", file, ...SRC, ...WINGET_COMMON], 120000); // exit code can be non-zero even when the file is written
     let text;
     try { text = await fs.promises.readFile(file, "utf8"); } catch { return null; }
     const ids = winget.parseExportJson(text);
     if (!ids) return null;
-    return catalog.filter((item) => item.installType !== "website" && item.packageId && ids.has(item.packageId.toLowerCase())).map((item) => item.id);
+    const map = new Map();
+    for (const item of catalog) {
+      if (item.installType === "website") continue;
+      const actual = winget.matchInstalled(item, ids);
+      if (actual) map.set(item.id, actual);
+    }
+    return map;
   } finally { fs.promises.unlink(file).catch(() => {}); }
 }
 // Slow fallback for old winget versions without a usable `export`: one `winget list` per catalog entry, 4 at a time.
 async function scanPerPackage() {
-  const queue = catalog.filter((item) => item.packageId && item.installType !== "website"); const found = []; let next = 0;
+  const queue = catalog.filter((item) => item.packageId && item.installType !== "website"); const found = new Map(); let next = 0;
   const worker = async () => {
     while (next < queue.length) {
       const item = queue[next++];
-      const result = await runWinget(["list", "--id", item.packageId, "--exact", ...WINGET_COMMON], 30000);
-      if (result.ok && result.output.toLowerCase().includes(item.packageId.toLowerCase())) found.push(item.id);
+      const result = await runWinget(["list", "--id", item.packageId, "--exact", ...SRC, ...WINGET_COMMON], 30000);
+      if (result.ok && result.output.toLowerCase().includes(item.packageId.toLowerCase())) found.set(item.id, item.packageId.toLowerCase());
     }
   };
   await Promise.all(Array.from({ length: 4 }, worker));
   return found;
+}
+// One shared scan; resolves with the catalog ids that are installed.
+function scanInstalled() {
+  if (!installedPromise) {
+    installedPromise = (async () => {
+      let found = null;
+      try { found = await scanViaExport(); } catch (error) { console.error("winget export scan failed:", error); }
+      if (!found) found = await scanPerPackage();
+      installedMap = found; upgradableCache = null;
+      return installedIds();
+    })().finally(() => { installedPromise = null; });
+  }
+  return installedPromise;
+}
+// Which installed catalog apps have a newer version? One `winget upgrade` call instead of one per app.
+function scanUpgradable() {
+  if (!upgradablePromise) {
+    upgradablePromise = (async () => {
+      const result = await runWinget(["upgrade", ...SRC, ...WINGET_COMMON], 120000);
+      const usable = result.output && (result.ok || winget.normalizeCode(result.code) === winget.CODES.NO_PACKAGES_FOUND);
+      if (!usable) return null;
+      const byPackage = new Map([...installedMap].map(([id, pkg]) => [pkg, id]));
+      const hits = winget.parseUpgradeOutput(result.output, byPackage.keys());
+      return [...hits].map((pkg) => byPackage.get(pkg)).filter(Boolean);
+    })().then((list) => { upgradableCache = list; return list; }).finally(() => { upgradablePromise = null; });
+  }
+  return upgradablePromise;
 }
 
 // ---------- External links ----------
@@ -181,6 +183,86 @@ catalog.forEach((item) => { addAllowed(item.source); addAllowed(item.sourceUrl);
 if (publishConfig.owner && publishConfig.repo) addAllowed("https://github.com/" + publishConfig.owner + "/" + publishConfig.repo + "/");
 const isAllowedExternal = (url) => url.protocol === "https:" && [...allowedPrefixes].some((prefix) => url.href.startsWith(prefix));
 
+// ---------- Install / update queue ----------
+// The whole queue runs here, not in the window: it keeps going (and stays guarded by the close prompt) between items,
+// can be cancelled, and the window only receives progress events.
+let batch = null; // { cancelled: boolean } while a queue is running
+function sendProgress(payload) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("queue:progress", payload); }
+const WINGET_MISSING = "WinGet was not found. Update App Installer from Microsoft Store.";
+
+function describe(result, verdict, extra) {
+  const ok = verdict.ok;
+  return {
+    status: ok ? "success" : "failure",
+    message: verdict.message + (extra || ""),
+    details: ok ? "" : winget.tailOutput(result.output),
+    rebootRequired: Boolean(verdict.rebootRequired)
+  };
+}
+
+async function installOne(item, preferUserScope) {
+  if (item.installType === "website") {
+    if (!item.sourceUrl || !/^https:\/\//.test(item.sourceUrl)) return { status: "failure", message: "Refusing to open a non-HTTPS link." };
+    try { await shell.openExternal(item.sourceUrl); } catch (error) { return { status: "failure", message: "Could not open the browser: " + error.message }; }
+    return { status: "opened", message: "Opened the official download page — finish installing there" };
+  }
+  if (!item.packageId) return { status: "failure", message: "No supported installation method is configured." };
+  if (installedMap.has(item.id)) return { status: "skipped", reason: "already", message: "Already installed — skipped" };
+  if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
+  const base = ["install", "--id", item.packageId, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON];
+  const scoped = preferUserScope !== false;
+  let result = await runWinget(scoped ? [...base, "--scope", "user"] : base);
+  let retried = false;
+  if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
+  if (!result.ok && scoped && winget.isScopeFallback(result)) {
+    retried = true; result = await runWinget(base); // no per-user installer exists: retry with WinGet's default scope (may ask for administrator approval)
+    if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
+  }
+  const verdict = winget.interpretInstall(result);
+  const note = retried ? " (no per-user installer exists, so it was installed machine-wide)" : "";
+  const out = describe(result, verdict, retried && verdict.ok ? note : "");
+  if (retried && !verdict.ok) out.details = ("Retried without per-user scope. " + out.details).trim();
+  if (verdict.ok) { installedMap.set(item.id, item.packageId.toLowerCase()); if (upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id); }
+  return out;
+}
+
+async function updateOne(item) {
+  if (!item.packageId || item.installType === "website") return { status: "failure", message: "This application must be updated from its official website." };
+  if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
+  const target = installedMap.get(item.id) || item.packageId; // the version family that is really installed, not the catalog's pinned id
+  // No --scope here: an app installed machine-wide would be filtered out and fail to update.
+  const result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON]);
+  if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
+  const verdict = winget.interpretUpgrade(result);
+  if (verdict.ok && upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id);
+  return describe(result, verdict);
+}
+
+async function runQueue(request) {
+  if (batch) return { ok: false, error: "Another queue is already running." };
+  const action = request && request.action === "update" ? "update" : "install";
+  const requested = Array.isArray(request && request.ids) ? [...new Set(request.ids.filter((id) => typeof id === "string"))] : [];
+  if (!requested.length) return { ok: false, error: "Nothing was selected." };
+  const preferUserScope = !request || request.preferUserScope !== false;
+  batch = { cancelled: false }; activeOps++;
+  const results = [];
+  try {
+    if (installedPromise) await installedPromise.catch(() => {}); // let a running scan finish first so it cannot fight the first install
+    for (let index = 0; index < requested.length; index++) {
+      const id = requested[index]; const item = byId.get(id); const total = requested.length;
+      if (!item) { const r = { id, name: id, status: "failure", message: "This application is not in the trusted catalog." }; results.push(r); sendProgress({ phase: "done", index, total, ...r }); continue; }
+      if (batch.cancelled) { const r = { id, name: item.name, status: "skipped", reason: "cancelled", message: "Cancelled" }; results.push(r); sendProgress({ phase: "done", index, total, ...r }); continue; }
+      sendProgress({ phase: "start", index, total, id, name: item.name, status: "pending", message: "In progress…" });
+      let outcome;
+      try { outcome = action === "update" ? await updateOne(item) : await installOne(item, preferUserScope); }
+      catch (error) { outcome = { status: "failure", message: error.message || "Unexpected error" }; }
+      const r = { id, name: item.name, ...outcome }; results.push(r);
+      sendProgress({ phase: "done", index, total, ...r });
+    }
+    return { ok: true, action, cancelled: batch.cancelled, results };
+  } finally { batch = null; activeOps--; }
+}
+
 // ---------- IPC ----------
 ipcMain.handle("catalog:list", () => catalog);
 ipcMain.handle("catalog:profiles", () => profiles);
@@ -191,61 +273,27 @@ ipcMain.handle("update:install", () => {
   if (updateState.state !== "ready") return { ok: false };
   if (!app.isPackaged) return { ok: true, simulated: true };
   allowClose = true; // the renderer already asked the user to confirm if installs are running
-  setImmediate(() => autoUpdater.quitAndInstall(true, true));
+  setTimeout(() => { allowClose = false; }, 30000).unref(); // if the restart never happens, the close prompt must work again
+  setImmediate(() => { try { autoUpdater.quitAndInstall(true, true); } catch (error) { allowClose = false; console.error("quitAndInstall failed:", error); } });
   return { ok: true };
 });
 ipcMain.handle("system:winget", () => checkWinget());
 ipcMain.handle("apps:installed", async () => {
-  if (activeOps > 0) return installedCache; // do not fight a running install for winget
-  if (!(await ensureWinget())) { installedCache = []; return installedCache; }
-  if (!installedPromise) {
-    installedPromise = (async () => {
-      let found = null;
-      try { found = await scanViaExport(); } catch (error) { console.error("winget export scan failed:", error); }
-      if (!found) found = await scanPerPackage();
-      installedCache = found; return found;
-    })().finally(() => { installedPromise = null; });
-  }
-  return installedPromise;
+  if (activeOps > 0) return installedIds(); // do not fight a running install for winget
+  if (!(await ensureWinget())) { installedMap = new Map(); upgradableCache = null; return []; }
+  return scanInstalled();
 });
-ipcMain.handle("apps:install", async (_event, id, preferUserScope = true) => {
-  const item = byId.get(id);
-  if (!item) return { ok: false, error: "This application is not in the trusted catalog." };
-  if (item.installType === "website" && item.sourceUrl) {
-    if (!/^https:\/\//.test(item.sourceUrl)) return { ok: false, appName: item.name, error: "Refusing to open a non-HTTPS link." };
-    try { await shell.openExternal(item.sourceUrl); } catch (error) { return { ok: false, appName: item.name, error: "Could not open the browser: " + error.message }; }
-    return { ok: true, appName: item.name, output: "Opened the official download page. Complete the installation there." };
-  }
-  if (!item.packageId) return { ok: false, appName: item.name, error: "No supported installation method is configured." };
-  return runExclusive(async () => {
-    if (installedPromise) await installedPromise.catch(() => {});
-    if (!(await ensureWinget())) return { ok: false, appName: item.name, error: "WinGet was not found. Update App Installer from Microsoft Store." };
-    const base = ["install", "--id", item.packageId, "--exact", "--silent", "--accept-package-agreements", ...WINGET_COMMON];
-    const scoped = preferUserScope !== false;
-    let result = await runWinget(scoped ? [...base, "--scope", "user"] : base);
-    if (!result.ok && scoped && winget.isScopeFallback(result)) result = await runWinget(base);
-    const verdict = winget.interpretInstall(result);
-    return {
-      ok: verdict.ok, appName: item.name, code: winget.normalizeCode(result.code), rebootRequired: Boolean(verdict.rebootRequired),
-      output: verdict.ok ? verdict.message : "", error: verdict.ok ? null : verdict.message, details: verdict.ok ? "" : winget.tailOutput(result.output)
-    };
-  });
+ipcMain.handle("apps:upgradable", async () => {
+  if (activeOps > 0) return upgradableCache;
+  if (!(await ensureWinget())) return null;
+  if (installedPromise) await installedPromise.catch(() => {});
+  return scanUpgradable();
 });
-ipcMain.handle("apps:update", async (_event, id) => {
-  const item = byId.get(id);
-  if (!item) return { ok: false, error: "This application is not in the trusted catalog." };
-  if (!item.packageId || item.installType === "website") return { ok: false, appName: item.name, error: "This application must be updated from its official website." };
-  return runExclusive(async () => {
-    if (installedPromise) await installedPromise.catch(() => {});
-    if (!(await ensureWinget())) return { ok: false, appName: item.name, error: "WinGet was not found. Update App Installer from Microsoft Store." };
-    // No --scope here: an app installed machine-wide would be filtered out and fail to update.
-    const result = await runWinget(["upgrade", "--id", item.packageId, "--exact", "--silent", "--accept-package-agreements", ...WINGET_COMMON]);
-    const verdict = winget.interpretUpgrade(result);
-    return {
-      ok: verdict.ok, appName: item.name, code: winget.normalizeCode(result.code), rebootRequired: Boolean(verdict.rebootRequired),
-      output: verdict.ok ? verdict.message : "", error: verdict.ok ? null : verdict.message, details: verdict.ok ? "" : winget.tailOutput(result.output)
-    };
-  });
+ipcMain.handle("queue:run", (_event, request) => runQueue(request));
+ipcMain.handle("queue:cancel", async () => {
+  if (!batch) return { ok: false };
+  batch.cancelled = true; await runner.killAll();
+  return { ok: true };
 });
 ipcMain.handle("external:open", async (_event, url) => {
   try {
@@ -259,9 +307,10 @@ ipcMain.handle("external:open", async (_event, url) => {
 if (gotLock) {
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+    session.defaultSession.setPermissionCheckHandler(() => false);
     createWindow(); configureAutoUpdates();
     app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   });
-  app.on("before-quit", () => { for (const child of activeChildren) killTree(child); });
+  app.on("before-quit", () => { runner.killAll(); });
   app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 }

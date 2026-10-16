@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.8.0
+
+### Fixed
+- A failed per-user install no longer turns into an elevated install because the word "scope" appeared in WinGet's output. The machine-wide retry now happens only for the `NO_APPLICABLE_INSTALLER` exit code, and the result row says when it happened.
+- After a timeout or cancel, OpenInstall now waits for the whole installer process tree to exit before the next item starts (previously the next install could start while the old one still held the installer lock).
+- Release builds can no longer be cancelled by a later push: each release tag has its own workflow concurrency group.
+- Closing the window between two queued items no longer abandons the rest of the queue without a prompt (the queue now runs in the main process).
+- The "installs running" close prompt can no longer stay disabled if restarting for an update fails.
+- Apps whose catalog ID pins a major version (Python 3.13, Ruby 3.4, GIMP 3, Visual Studio 2022) are detected when any version of that family is installed, and **Update** upgrades the version that is really installed.
+- The **Open source** license filter no longer includes "core", "client", "base" and "components" apps; they have their own **Partly open source** group.
+
+### Added
+- **Cancel** and **Retry failed** buttons for the install/update queue.
+- **Update available** badges (one `winget upgrade` call) and an **Update all** button in the Installed apps view.
+- Whole app cards are clickable; visible keyboard focus styles.
+- `npm run fetch:logos` downloads logos into `src/logos/` so real icons need no runtime network requests; bundled logos are used automatically.
+- Tests for the WinGet process runner (timeout, cancel, output cap, missing executable), version-family detection and upgrade parsing, using a fake winget script.
+- The window now uses `src/icon.png`.
+
+### Performance
+- Every WinGet call uses `--source winget` (skips the Microsoft Store source).
+- The queue no longer finishes with a full `winget export` rescan; installed/updated state is updated locally.
+- CI: fast checks on every push, the Windows installer only for releases and manual runs; npm cache enabled; `npm ci` instead of `npx npm@10`.
+
+### Security
+- The release workflow attaches files with the preinstalled GitHub CLI instead of a third-party action that ran with write access.
+- Optional code signing through the `CSC_LINK` / `CSC_KEY_PASSWORD` repository secrets, with README steps for `publisherName` and tag protection.
+- Permission checks are denied as well as permission requests.
+
 ## 0.7.0
 
 ### Fixed

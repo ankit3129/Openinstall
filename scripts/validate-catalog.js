@@ -18,7 +18,11 @@ for (const { file, index, item } of entries) {
     if (!item.packageId || typeof item.packageId !== "string") errors.push(where + ": winget entry has no packageId");
     else if (!/^[A-Za-z0-9][\w+.-]*\.[\w+.-]+$/.test(item.packageId)) errors.push(where + ": invalid packageId " + item.packageId);
     else { const k = item.packageId.toLowerCase(); if (pkgs.has(k)) errors.push(where + ": duplicate packageId (also " + pkgs.get(k) + ")"); pkgs.set(k, item.id); }
-  } else if (item.installType === "website") { if (item.packageId) errors.push(where + ": website entry should not have packageId"); }
+    if (item.detectRegex !== undefined) {
+      try { if (!new RegExp(item.detectRegex).test(String(item.packageId).toLowerCase())) errors.push(where + ": detectRegex does not match its own packageId"); }
+      catch (error) { errors.push(where + ": detectRegex is not a valid regular expression (" + error.message + ")"); }
+    }
+  } else if (item.installType === "website") { if (item.packageId) errors.push(where + ": website entry should not have packageId"); if (item.detectRegex) errors.push(where + ": website entry should not have detectRegex"); }
   else errors.push(where + ": invalid installType");
 }
 

@@ -12,7 +12,7 @@ const NO_PACKAGES_FOUND = 0x8A150014;
 function show(id) {
   return new Promise((resolve) => {
     let child; let output = "";
-    try { child = spawn("winget", ["show", "--id", id, "--exact", "--accept-source-agreements", "--disable-interactivity"], { windowsHide: true }); }
+    try { child = spawn("winget", ["show", "--id", id, "--exact", "--source", "winget", "--accept-source-agreements", "--disable-interactivity"], { windowsHide: true }); }
     catch (error) { resolve({ status: "error", detail: error.message }); return; }
     const timer = setTimeout(() => { child.kill(); resolve({ status: "error", detail: "timed out" }); }, 60000);
     child.stdout.on("data", (d) => { output += d; if (output.length > 8192) output = output.slice(-8192); });

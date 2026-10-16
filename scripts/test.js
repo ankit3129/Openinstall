@@ -6,8 +6,12 @@ const path = require("node:path");
 const w = require("../src/winget-utils");
 const { loadCatalog, listCatalogParts } = require("../src/catalog-loader");
 
+const { createRunner, killTree } = require("../src/winget-runner");
+const { spawn } = require("node:child_process");
+
 let passed = 0;
-const test = (name, fn) => { try { fn(); passed++; } catch (error) { console.error("FAIL: " + name + "\n  " + error.message); process.exitCode = 1; } };
+const queued = [];
+const test = (name, fn) => { queued.push({ name, fn }); }; // tests run one after another at the bottom (some are async)
 
 test("normalizeCode makes signed and unsigned codes equal", () => {
   assert.equal(w.normalizeCode(-1978335135), 0x8A150061);
@@ -31,9 +35,11 @@ test("upgrade: up to date counts as success; missing package is a failure", () =
   assert.equal(w.interpretUpgrade({ ok: false, code: 1, output: "No newer package versions are available" }).ok, true);
   assert.equal(w.interpretUpgrade({ ok: false, code: 0x8A150014, output: "" }).ok, false);
 });
-test("scope fallback triggers on the documented code and on English text only when the install failed", () => {
+test("scope fallback is decided by exit code only (words like 'scope' in the output must not trigger an elevated retry)", () => {
   assert.equal(w.isScopeFallback({ ok: false, code: 0x8A150010, output: "" }), true);
-  assert.equal(w.isScopeFallback({ ok: false, code: 1, output: "No applicable installer found" }), true);
+  assert.equal(w.isScopeFallback({ ok: false, code: -1978335216, output: "" }), true); // same code, signed
+  assert.equal(w.isScopeFallback({ ok: false, code: 1, output: "No applicable installer found" }), false);
+  assert.equal(w.isScopeFallback({ ok: false, code: 0x8A15010D, output: "installer scope scope scope" }), false);
   assert.equal(w.isScopeFallback({ ok: false, code: 0x8A150107, output: "network down" }), false);
   assert.equal(w.isScopeFallback({ ok: true, code: 0, output: "scope" }), false);
 });
@@ -74,4 +80,69 @@ test("the real catalog loads with no errors", () => {
   assert.deepEqual(r.errors, []); assert.ok(r.entries.length > 100);
 });
 
-console.log(passed + " tests passed" + (process.exitCode ? ", with failures" : "") + ".");
+test("matchInstalled finds the exact pinned id and, via detectRegex, other versions of the same family", () => {
+  const python = { packageId: "Python.Python.3.13", detectRegex: "^python\\.python\\.3\\.\\d+$" };
+  assert.equal(w.matchInstalled(python, new Set(["python.python.3.13"])), "python.python.3.13");
+  assert.equal(w.matchInstalled(python, new Set(["git.git", "python.python.3.14"])), "python.python.3.14");
+  assert.equal(w.matchInstalled(python, new Set(["python.python.2.7"])), null);
+  assert.equal(w.matchInstalled({ packageId: "Git.Git" }, new Set(["git.git.beta"])), null); // no detectRegex: exact match only
+  assert.equal(w.matchInstalled({ packageId: "A.B", detectRegex: "(" }, new Set(["a.c"])), null); // a broken regex never throws
+});
+test("parseUpgradeOutput finds known ids as whole tokens in a localized table", () => {
+  const out = "Name        Id                  Version  Verfuegbar\r\n-----\r\nGit         Git.Git             2.50.0   2.51.0\r\nPython 3    Python.Python.3.14  3.14.0   3.14.1\r\nVLC  VideoLAN.VLC.Nightly 1 2\r\n2 Aktualisierungen verfuegbar.";
+  const found = w.parseUpgradeOutput(out, ["Git.Git", "python.python.3.14", "VideoLAN.VLC", "Mozilla.Firefox"]);
+  assert.deepEqual([...found].sort(), ["git.git", "python.python.3.14"]);
+  assert.equal(w.parseUpgradeOutput("", ["Git.Git"]).size, 0);
+});
+test("every WinGet call can be pinned to the community source", () => {
+  assert.deepEqual([...w.SOURCE_ARGS], ["--source", "winget"]);
+});
+
+const FAKE = path.join(__dirname, "fake-winget.js");
+const fake = (overrides) => createRunner({ command: process.execPath, prefixArgs: [FAKE], ...overrides });
+
+test("runner: success, non-zero exit, missing executable", async () => {
+  const r = fake();
+  const ok = await r.run(["out", "hello"]);
+  assert.equal(ok.ok, true); assert.match(ok.output, /hello/);
+  const bad = await r.run(["fail", "7"]);
+  assert.equal(bad.ok, false); assert.equal(bad.code, 7); assert.match(bad.output, /something failed/);
+  const missing = await createRunner({ command: "definitely-not-winget-xyz" }).run(["--version"]);
+  assert.equal(missing.ok, false); assert.match(missing.error, /not found/i);
+});
+test("runner: output is capped in memory", async () => {
+  const r = fake({ maxOutput: 500 });
+  const result = await r.run(["spam", "200000"]);
+  assert.equal(result.ok, true); assert.ok(result.output.length <= 1002, "output was " + result.output.length);
+});
+test("runner: a timeout kills the process, waits for it to die, and reports a timeout", async () => {
+  const r = fake();
+  const started = Date.now();
+  const result = await r.run(["hang"], 300);
+  assert.equal(result.ok, false); assert.equal(result.timedOut, true); assert.match(result.error, /Timed out/);
+  assert.ok(Date.now() - started < 4000, "kill took too long");
+  assert.equal(r.activeCount, 0);
+});
+test("runner: killAll cancels a running process and marks it cancelled", async () => {
+  const r = fake();
+  const pending = r.run(["hang"], 60000);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(r.activeCount, 1);
+  await r.killAll();
+  const result = await pending;
+  assert.equal(result.cancelled, true); assert.equal(result.ok, false); assert.equal(r.activeCount, 0);
+});
+test("killTree resolves only after the child has exited", async () => {
+  const child = spawn(process.execPath, [FAKE, "hang"], { stdio: "ignore" });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  await killTree(child);
+  assert.ok(child.exitCode !== null || child.signalCode !== null, "child still running after killTree resolved");
+  await killTree(child); // killing an already-dead child is a no-op
+});
+
+(async () => {
+  for (const { name, fn } of queued) {
+    try { await fn(); passed++; } catch (error) { console.error("FAIL: " + name + "\n  " + error.message); process.exitCode = 1; }
+  }
+  console.log(passed + " tests passed" + (process.exitCode ? ", with failures" : "") + ".");
+})();

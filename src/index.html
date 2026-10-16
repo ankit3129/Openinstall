@@ -22,7 +22,7 @@
     <main class="main">
       <header class="topbar">
         <div><div class="eyebrow">YOUR WINDOWS TOOLKIT</div><h1 id="page-title">Discover software</h1></div>
-        <div class="top-actions"><button id="refresh-btn" class="icon-button" title="Refresh installed apps">↻</button><button id="selection-button" class="primary-button">Install selected <span id="selected-count">0</span></button></div>
+        <div class="top-actions"><button id="refresh-btn" class="icon-button" title="Refresh installed apps">↻</button><button id="update-all" class="primary-button hidden">Update all</button><button id="selection-button" class="primary-button">Install selected <span id="selected-count">0</span></button></div>
       </header>
       <section id="update-banner" class="update-banner hidden" role="status" aria-live="polite"><div class="update-text"><strong id="update-title"></strong><span id="update-detail"></span></div><progress id="update-progress" class="hidden" max="100" value="0"></progress><div class="update-actions"><button id="update-notes" class="text-button hidden">What is new</button><button id="update-dismiss" class="text-button hidden">Later</button><button id="update-restart" class="primary-button hidden">Restart and update</button></div></section>
       <section class="hero">
@@ -32,14 +32,14 @@
       <section class="toolbar">
         <label class="search-box"><span>⌕</span><input id="search-input" type="search" placeholder="Search apps, categories, or descriptions…" autocomplete="off"></label>
         <select id="category-filter" aria-label="Filter by category"><option value="all">All categories</option></select>
-        <select id="license-filter" aria-label="Filter by license"><option value="all">All licenses</option><option>Open source</option><option>Freeware</option><option>Proprietary</option></select>
+        <select id="license-filter" aria-label="Filter by license"><option value="all">All licenses</option><option>Open source</option><option>Partly open source</option><option>Freeware</option><option>Proprietary</option></select>
       </section>
       <section id="profiles-panel" class="profiles-panel hidden"></section>
       <section class="catalog-heading"><div><h3 id="section-title">Popular picks</h3><p id="result-count">Loading catalog…</p></div><div class="catalog-options"><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label><label class="scope-toggle" title="Off by default. Turning this on requests each logo from Google, DuckDuckGo or GitHub, which reveals which apps you are browsing."><input id="web-logos" type="checkbox"><span>Fetch app logos online</span></label></div></section>
       <p id="catalog-warning" class="catalog-warning hidden" role="alert"></p>
       <section id="app-grid" class="app-grid"></section>
       <section id="empty-state" class="empty-state hidden"><div>⌕</div><h3>No apps found</h3><p>Try a different search or category.</p></section>
-      <section id="queue-panel" class="queue-panel hidden"><div class="queue-head"><div><h3>Installation queue</h3><p id="queue-summary">Preparing selected apps…</p></div><button id="clear-queue" class="text-button">Clear results</button></div><div id="queue-list"></div></section>
+      <section id="queue-panel" class="queue-panel hidden"><div class="queue-head"><div><h3>Installation queue</h3><p id="queue-summary">Preparing selected apps…</p></div><div class="queue-actions"><button id="cancel-queue" class="text-button hidden">Cancel</button><button id="retry-failed" class="text-button hidden">Retry failed</button><button id="clear-queue" class="text-button">Clear results</button></div></div><div id="queue-list"></div></section>
       <footer>OpenInstall is early-stage software. Review publishers and approve Windows prompts only when you understand them.</footer>
     </main>
   </div>

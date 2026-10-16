@@ -1,6 +1,6 @@
 {
   "name": "openinstall",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Open-source-first bulk software installer for Windows",
   "productName": "OpenInstall",
   "main": "src/main.js",
@@ -9,9 +9,10 @@
   "scripts": {
     "start": "electron .",
     "test": "node scripts/test.js",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js && node --check src/winget-utils.js && node --check src/catalog-loader.js && node scripts/validate-catalog.js && node scripts/test.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js && node --check src/winget-utils.js && node --check src/winget-runner.js && node --check src/catalog-loader.js && node --check scripts/fetch-logos.js && node scripts/validate-catalog.js && node scripts/test.js",
     "verify:winget": "node scripts/verify-winget-ids.js",
-    "dist:win": "electron-builder --win nsis --publish never"
+    "dist:win": "electron-builder --win nsis --publish never",
+    "fetch:logos": "node scripts/fetch-logos.js"
   },
   "devDependencies": {
     "electron": "44.4.5",

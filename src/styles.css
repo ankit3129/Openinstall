@@ -21,3 +21,12 @@
 .app-card{content-visibility:auto;contain-intrinsic-size:auto 168px}
 @keyframes oi-pulse{50%{opacity:.45}}
 @media (prefers-reduced-motion:reduce){.queue-status.pending{animation:none}}
+
+/* v0.8 additions */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.search-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px #9d8cff33}
+.search-box input:focus-visible{outline:0}
+.app-card[data-app]{cursor:pointer}
+.update-badge{font-size:9px;color:#ffd48a;border:1px solid #6b5630;background:#3a2f17;border-radius:5px;padding:3px 5px;white-space:nowrap}
+.queue-actions{display:flex;align-items:center;gap:14px}
+.primary-button.hidden,.text-button.hidden{display:none}

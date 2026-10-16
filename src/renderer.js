@@ -1,5 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { catalog: [], selected: new Set(), installed: new Set(), view: "discover", busy: false };
+const state = { catalog: [], selected: new Set(), installed: new Set(), upgradable: null, upgradeChecked: false, view: "discover", busy: false };
+let failedIds = [];
 let profiles = [];
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const iconFor = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -11,8 +12,11 @@ const hueFor = (text) => { let h = 0; for (const ch of String(text)) h = (h * 31
 const LOGO_KEY = "openinstall.webLogos";
 let webLogos = false;
 try { webLogos = localStorage.getItem(LOGO_KEY) === "1"; } catch {}
+// Bundled logos (src/logos/<id>.png, created by `npm run fetch:logos`) are always tried first: they are local files, so they cost no privacy.
+// A missing file just falls through to the next URL, and finally to the emoji / initials.
 const logoUrlsFor = (app) => {
-  const urls = [];
+  const urls = ["logos/" + encodeURIComponent(app.id) + ".png"];
+  if (!webLogos) return urls;
   try {
     const site = new URL(app.source);
     if (site.hostname === "github.com") {
@@ -29,7 +33,7 @@ const logoUrlsFor = (app) => {
   return urls;
 };
 const appIconMarkup = (app) => {
-  const urls = webLogos ? logoUrlsFor(app) : [];
+  const urls = logoUrlsFor(app);
   const glyph = app.icon || iconFor(app.name);
   const hue = hueFor(app.id || app.name);
   const image = urls.length ? '<img src="' + escapeHtml(urls[0]) + '" data-fallbacks="' + escapeHtml(JSON.stringify(urls.slice(1))) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">' : "";
@@ -57,6 +61,8 @@ function renderCategories() {
 }
 const licenseGroup = (label) => {
   const l = String(label || "").toLowerCase();
+  // "core", "client", "base" and "components" mean part of the product is closed, so they must not pass an open-source-only filter.
+  if (/^open source (core|client|base|components)\b/.test(l)) return "Partly open source";
   if (l.startsWith("open source")) return "Open source";
   if (l.startsWith("freeware") || l.startsWith("proprietary freeware") || l.startsWith("free ")) return "Freeware";
   return "Proprietary";
@@ -76,7 +82,7 @@ function renderApps() {
   $("#result-count").textContent = apps.length + " apps in view · " + state.catalog.length + " in catalog";
   $("#app-grid").innerHTML = apps.map((app) => {
     const selected = state.selected.has(app.id); const installed = state.installed.has(app.id);
-    return '<article class="app-card ' + (selected ? "selected" : "") + '">' +
+    return '<article class="app-card ' + (selected ? "selected" : "") + '" data-app="' + escapeHtml(app.id) + '">' +
       '<div class="app-card-top">' + appIconMarkup(app) + '<button class="select-app ' + (selected ? "checked" : "") + '" data-select="' + escapeHtml(app.id) + '" aria-pressed="' + selected + '" aria-label="Select ' + escapeHtml(app.name) + '">' + (selected ? "✓" : "+") + '</button></div>' +
       '<div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' + (installed ? '<span class="installed-badge">Installed</span>' : "") + '</div>' +
       '<p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span>' + escapeHtml(app.category) + '</span><span class="license-tag">' + escapeHtml(app.license) + '</span></div></article>';
@@ -88,12 +94,28 @@ function renderApps() {
 function renderInstalledView() {
   const query = $("#search-input").value.trim().toLowerCase();
   const apps = state.catalog.filter((app) => state.installed.has(app.id) && (!query || app._hay.includes(query)));
-  $("#result-count").textContent = apps.length + " detected installed apps";
-  $("#app-grid").innerHTML = apps.map((app) => '<article class="app-card"><div class="app-card-top">' + appIconMarkup(app) +
-    (app.installType === "website" ? "" : '<button class="update-app" data-update="' + escapeHtml(app.id) + '">Update</button>') +
-    '</div><div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3><span class="installed-badge">Installed</span></div><p class="app-description">' + escapeHtml(app.description) + '</p></article>').join("");
+  const upgradable = state.upgradable;
+  $("#result-count").textContent = apps.length + " detected installed apps" + (upgradable ? " · " + upgradable.size + " with updates" : "");
+  $("#app-grid").innerHTML = apps.map((app) => {
+    const hasUpdate = upgradable ? upgradable.has(app.id) : false;
+    const action = app.installType === "website" ? "" : '<button class="update-app" data-update="' + escapeHtml(app.id) + '"' + (state.busy ? " disabled" : "") + '>' + "Update" + '</button>';
+    return '<article class="app-card"><div class="app-card-top">' + appIconMarkup(app) + action + '</div><div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' +
+      (hasUpdate ? '<span class="update-badge">Update available</span>' : '<span class="installed-badge">Installed</span>') + '</div><p class="app-description">' + escapeHtml(app.description) + '</p></article>';
+  }).join("");
   wireLogoFallbacks($("#app-grid")); $("#empty-state").classList.toggle("hidden", apps.length > 0); $("#app-grid").classList.toggle("hidden", apps.length === 0);
-  updateSelectionUI();
+  updateUpdateAll(); updateSelectionUI();
+}
+// "Update all" updates the apps known to have a newer version; if the check could not run, it tries every installed app.
+function updateAllIds() {
+  const updatable = (app) => state.installed.has(app.id) && app.installType !== "website";
+  return state.catalog.filter((app) => updatable(app) && (!state.upgradable || state.upgradable.has(app.id))).map((app) => app.id);
+}
+function updateUpdateAll() {
+  const button = $("#update-all"); const show = state.view === "installed";
+  button.classList.toggle("hidden", !show); if (!show) return;
+  const ids = updateAllIds();
+  button.disabled = state.busy || ids.length === 0;
+  button.textContent = state.upgradable && ids.length === 0 ? "All up to date ✓" : "Update all" + (state.upgradable ? " (" + ids.length + ")" : "");
 }
 function renderProfiles() {
   $("#profiles-panel").innerHTML = profiles.map((profile, index) => '<button class="profile-card" data-profile="' + index + '"><span class="profile-spark">✦</span><strong>' + escapeHtml(profile.name) + '</strong><span>' + escapeHtml(profile.description) + '</span><small>' + profile.ids.length + ' suggested apps · Select profile</small></button>').join("");
@@ -112,55 +134,80 @@ function refreshInstalled() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     $("#refresh-btn").classList.add("spinning");
-    try { state.installed = new Set(await window.openInstall.getInstalled()); renderApps(); }
+    try { state.installed = new Set(await window.openInstall.getInstalled()); state.upgradable = null; state.upgradeChecked = false; renderApps(); }
     catch { $("#winget-status").textContent = "Could not check installed apps"; }
     finally { $("#refresh-btn").classList.remove("spinning"); }
+    if (state.view === "installed") await refreshUpgradable();
   })().finally(() => { refreshPromise = null; });
   return refreshPromise;
 }
-async function installSelected() {
-  if (state.busy || state.selected.size === 0) return;
-  state.busy = true; updateSelectionUI();
-  const chosen = state.catalog.filter((app) => state.selected.has(app.id));
-  const rows = []; const counts = { installed: 0, opened: 0, skipped: 0, failed: 0, reboot: 0 };
-  const preferUserScope = $("#user-scope").checked;
-  for (let i = 0; i < chosen.length; i++) {
-    const app = chosen[i]; const summary = "Installing " + (i + 1) + " of " + chosen.length + ": " + app.name;
-    if (app.installType !== "website" && state.installed.has(app.id)) {
-      rows.push({ name: app.name, status: "skipped", message: "Already installed — skipped" }); counts.skipped++; state.selected.delete(app.id); renderQueue(rows, summary); continue;
-    }
-    renderQueue([...rows, { name: app.name, status: "pending", message: "In progress…" }], summary);
-    let result;
-    try { result = await window.openInstall.installApp(app.id, preferUserScope); } catch (error) { result = { ok: false, error: error.message }; }
-    if (result.ok) {
-      state.selected.delete(app.id);
-      if (app.installType === "website") { counts.opened++; rows.push({ name: app.name, status: "opened", message: "Opened the official download page — finish installing there" }); }
-      else { counts.installed++; if (result.rebootRequired) counts.reboot++; rows.push({ name: app.name, status: "success", message: result.output || "Installed successfully" }); }
-    } else {
-      counts.failed++; rows.push({ name: app.name, status: "failure", message: result.error || "Installation failed", details: result.details });
-    }
-    renderQueue(rows, summary);
+// One `winget upgrade` call tells us which installed apps have updates (null = could not tell).
+let upgradablePromise = null;
+function refreshUpgradable() {
+  if (upgradablePromise) return upgradablePromise;
+  upgradablePromise = (async () => {
+    state.upgradeChecked = true;
+    try { const list = await window.openInstall.getUpgradable(); state.upgradable = Array.isArray(list) ? new Set(list) : null; }
+    catch { state.upgradable = null; }
+    if (state.view === "installed") renderApps();
+  })().finally(() => { upgradablePromise = null; });
+  return upgradablePromise;
+}
+
+// The queue itself runs in the main process (so it survives UI re-renders, can be cancelled, and is covered by the close prompt).
+// The window only shows progress events and the final result.
+let queueRows = []; let queueAction = "install";
+window.openInstall.onQueueProgress((event) => {
+  queueRows[event.index] = { id: event.id, name: event.name, status: event.status, message: event.message, details: event.details };
+  const verb = queueAction === "update" ? "Updating " : "Installing ";
+  renderQueue(queueRows.filter(Boolean), event.phase === "start" ? verb + (event.index + 1) + " of " + event.total + ": " + event.name : undefined);
+});
+function setQueueRunning(running) {
+  $("#cancel-queue").classList.toggle("hidden", !running); $("#cancel-queue").disabled = false; $("#cancel-queue").textContent = "Cancel";
+  if (running) $("#retry-failed").classList.add("hidden");
+  document.querySelectorAll(".update-app").forEach((button) => { button.disabled = running; });
+}
+async function runQueue(action, ids, label) {
+  if (state.busy || ids.length === 0) return;
+  state.busy = true; queueAction = action; queueRows = []; failedIds = []; updateSelectionUI(); updateUpdateAll(); setQueueRunning(true);
+  renderQueue([], (action === "update" ? "Updating " : "Installing ") + (label || ids.length + " apps") + "…");
+  let outcome;
+  try { outcome = await window.openInstall.runQueue({ action, ids, preferUserScope: $("#user-scope").checked }); }
+  catch (error) { outcome = { ok: false, error: error.message }; }
+  setQueueRunning(false);
+  if (!outcome || !outcome.ok) {
+    renderQueue([{ name: "OpenInstall", status: "failure", message: (outcome && outcome.error) || "The queue could not run." }], "Could not run the queue");
+  } else {
+    const counts = { installed: 0, updated: 0, opened: 0, already: 0, cancelled: 0, failed: 0, reboot: 0 };
+    const rows = outcome.results.map((r) => {
+      if (r.status === "success") { if (action === "update") counts.updated++; else counts.installed++; if (r.rebootRequired) counts.reboot++; }
+      else if (r.status === "opened") counts.opened++;
+      else if (r.status === "skipped") { if (r.reason === "cancelled") counts.cancelled++; else counts.already++; }
+      else { counts.failed++; failedIds.push(r.id); }
+      // Keep local state in step with what just happened instead of rescanning with a slow `winget export`.
+      if (r.status === "success" && action === "install") state.installed.add(r.id);
+      if (r.status === "success" && action === "update" && state.upgradable) state.upgradable.delete(r.id);
+      if (r.status !== "failure" && !(r.status === "skipped" && r.reason === "cancelled")) state.selected.delete(r.id);
+      return { name: r.name, status: r.status, message: r.message, details: r.details };
+    });
+    const parts = [];
+    if (counts.installed) parts.push(counts.installed + " installed");
+    if (counts.updated) parts.push(counts.updated + " updated");
+    if (counts.opened) parts.push(counts.opened + " download " + (counts.opened === 1 ? "page" : "pages") + " opened");
+    if (counts.already) parts.push(counts.already + " already installed");
+    if (counts.cancelled) parts.push(counts.cancelled + " cancelled");
+    if (counts.failed) parts.push(counts.failed + " need attention");
+    if (counts.reboot) parts.push("restart Windows to finish");
+    renderQueue(rows, parts.join(" · ") || "Nothing to do");
   }
-  const parts = [];
-  if (counts.installed) parts.push(counts.installed + " installed");
-  if (counts.opened) parts.push(counts.opened + " download " + (counts.opened === 1 ? "page" : "pages") + " opened");
-  if (counts.skipped) parts.push(counts.skipped + " already installed");
-  if (counts.failed) parts.push(counts.failed + " need attention");
-  if (counts.reboot) parts.push("restart Windows to finish");
-  renderQueue(rows, parts.join(" · ") || "Nothing to do");
-  state.busy = false; renderApps();
-  await refreshInstalled();
+  $("#retry-failed").classList.toggle("hidden", failedIds.length === 0);
+  state.busy = false; renderApps(); updateUpdateAll();
 }
-async function updateInstalledApp(app, button) {
-  if (state.busy) return;
-  state.busy = true; updateSelectionUI(); button.disabled = true; const label = button.textContent; button.textContent = "Updating…";
-  renderQueue([{ name: app.name, status: "pending", message: "Checking for a newer version…" }], "Updating " + app.name);
-  let result;
-  try { result = await window.openInstall.updateApp(app.id); } catch (error) { result = { ok: false, error: error.message }; }
-  if (result.ok) renderQueue([{ name: app.name, status: "success", message: result.output || "Updated successfully" }], app.name + ": " + (result.output || "done"));
-  else renderQueue([{ name: app.name, status: "failure", message: result.error || "Update failed", details: result.details }], app.name + " needs attention");
-  state.busy = false; updateSelectionUI(); button.disabled = false; button.textContent = label;
+function installSelected() {
+  const ids = state.catalog.filter((app) => state.selected.has(app.id)).map((app) => app.id);
+  return runQueue("install", ids, ids.length + (ids.length === 1 ? " app" : " apps"));
 }
+function updateInstalledApp(app) { return runQueue("update", [app.id], app.name); }
 
 // ---------- Navigation and events ----------
 function setView(view) {
@@ -171,31 +218,39 @@ function setView(view) {
   $("#category-filter").classList.toggle("hidden", view !== "discover"); $("#license-filter").classList.toggle("hidden", view !== "discover");
   $("#page-title").textContent = view === "profiles" ? "Setup profiles" : view === "installed" ? "Installed apps" : "Discover software";
   $("#section-title").textContent = view === "profiles" ? "Choose a starting point" : view === "installed" ? "Detected through WinGet" : "Explore the catalog";
-  renderApps();
+  renderApps(); updateUpdateAll();
+  if (view === "installed" && !state.upgradeChecked && !state.busy) refreshUpgradable();
+}
+// Toggle in place instead of re-rendering the whole grid.
+function toggleSelection(card) {
+  const button = card.querySelector("[data-select]"); if (!button) return;
+  const id = button.dataset.select; const on = !state.selected.has(id);
+  on ? state.selected.add(id) : state.selected.delete(id);
+  button.classList.toggle("checked", on); button.textContent = on ? "✓" : "+"; button.setAttribute("aria-pressed", String(on));
+  card.classList.toggle("selected", on);
+  updateSelectionUI();
 }
 document.addEventListener("click", async (event) => {
   const selectButton = event.target.closest("[data-select]"); const profileButton = event.target.closest("[data-profile]");
   const navButton = event.target.closest("[data-view]"); const updateButton = event.target.closest("[data-update]");
-  if (selectButton) {
-    // Toggle in place instead of re-rendering the whole grid.
-    const id = selectButton.dataset.select; const on = !state.selected.has(id);
-    on ? state.selected.add(id) : state.selected.delete(id);
-    selectButton.classList.toggle("checked", on); selectButton.textContent = on ? "✓" : "+"; selectButton.setAttribute("aria-pressed", String(on));
-    const card = selectButton.closest(".app-card"); if (card) card.classList.toggle("selected", on);
-    updateSelectionUI();
-  }
+  // The whole card is a click target (not only the small + button); the + button keeps working for keyboard users.
+  const card = event.target.closest(".app-card[data-app]");
+  if (card && state.view === "discover") toggleSelection(card);
   if (profileButton) {
     const profile = profiles[Number(profileButton.dataset.profile)]; const known = new Set(state.catalog.map((app) => app.id));
     profile.ids.forEach((id) => { if (known.has(id)) state.selected.add(id); }); setView("discover");
   }
-  if (updateButton) { const app = state.catalog.find((a) => a.id === updateButton.dataset.update); if (app) updateInstalledApp(app, updateButton); }
+  if (updateButton) { const app = state.catalog.find((a) => a.id === updateButton.dataset.update); if (app) updateInstalledApp(app); }
   if (navButton) setView(navButton.dataset.view);
 });
 let searchTimer;
 $("#search-input").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderApps, 120); });
 $("#category-filter").addEventListener("change", renderApps); $("#license-filter").addEventListener("change", renderApps);
 $("#selection-button").addEventListener("click", installSelected); $("#refresh-btn").addEventListener("click", refreshInstalled);
-$("#clear-queue").addEventListener("click", () => { $("#queue-panel").classList.add("hidden"); $("#queue-list").innerHTML = ""; });
+$("#update-all").addEventListener("click", () => { const ids = updateAllIds(); runQueue("update", ids, ids.length + (ids.length === 1 ? " app" : " apps")); });
+$("#cancel-queue").addEventListener("click", async () => { const button = $("#cancel-queue"); button.disabled = true; button.textContent = "Cancelling…"; try { await window.openInstall.cancelQueue(); } catch {} });
+$("#retry-failed").addEventListener("click", () => { const ids = [...failedIds]; runQueue(queueAction, ids, ids.length + " failed " + (ids.length === 1 ? "app" : "apps")); });
+$("#clear-queue").addEventListener("click", () => { $("#queue-panel").classList.add("hidden"); $("#queue-list").innerHTML = ""; failedIds = []; $("#retry-failed").classList.add("hidden"); });
 $("#web-logos").checked = webLogos;
 $("#web-logos").addEventListener("change", (event) => {
   webLogos = event.target.checked;
