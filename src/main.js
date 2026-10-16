@@ -70,7 +70,7 @@ async function checkForUpdates(manual) {
 // ---------- Window ----------
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1320, height: 860, minWidth: 980, minHeight: 680, backgroundColor: "#0b1020", title: "OpenInstall", icon: path.join(__dirname, "icon.png"),
+    width: 1320, height: 860, minWidth: 980, minHeight: 680, backgroundColor: "#060607", title: "OpenInstall", icon: path.join(__dirname, "icon.png"),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -181,7 +181,7 @@ function addAllowed(urlString) {
     else allowedPrefixes.add(url.origin + "/");
   } catch {}
 }
-catalog.forEach((item) => { addAllowed(item.source); addAllowed(item.sourceUrl); });
+catalog.forEach((item) => { addAllowed(item.source); addAllowed(item.sourceUrl); addAllowed(item.github); });
 if (publishConfig.owner && publishConfig.repo) addAllowed("https://github.com/" + publishConfig.owner + "/" + publishConfig.repo + "/");
 const isAllowedExternal = (url) => url.protocol === "https:" && [...allowedPrefixes].some((prefix) => url.href.startsWith(prefix));
 
@@ -202,7 +202,14 @@ function describe(result, verdict, extra) {
   };
 }
 
-async function installOne(item, preferUserScope) {
+// Each winget call gets its own tracker, so a retry (machine-wide fallback) starts again from 0%.
+function trackerFor(report) {
+  if (!report) return undefined;
+  const tracker = winget.createProgressTracker();
+  return (chunk) => { const update = tracker.push(chunk); if (update) report(update); };
+}
+
+async function installOne(item, preferUserScope, report) {
   if (item.installType === "website") {
     if (!item.sourceUrl || !/^https:\/\//.test(item.sourceUrl)) return { status: "failure", message: "Refusing to open a non-HTTPS link." };
     try { await shell.openExternal(item.sourceUrl); } catch (error) { return { status: "failure", message: "Could not open the browser: " + error.message }; }
@@ -213,11 +220,11 @@ async function installOne(item, preferUserScope) {
   if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
   const base = ["install", "--id", item.packageId, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON];
   const scoped = preferUserScope !== false;
-  let result = await runWinget(scoped ? [...base, "--scope", "user"] : base);
+  let result = await runWinget(scoped ? [...base, "--scope", "user"] : base, undefined, trackerFor(report));
   let retried = false;
   if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
   if (!result.ok && scoped && winget.isScopeFallback(result)) {
-    retried = true; result = await runWinget(base); // no per-user installer exists: retry with WinGet's default scope (may ask for administrator approval)
+    retried = true; result = await runWinget(base, undefined, trackerFor(report)); // no per-user installer exists: retry with WinGet's default scope (may ask for administrator approval)
     if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
   }
   const verdict = winget.interpretInstall(result);
@@ -228,12 +235,12 @@ async function installOne(item, preferUserScope) {
   return out;
 }
 
-async function updateOne(item) {
+async function updateOne(item, report) {
   if (!item.packageId || item.installType === "website") return { status: "failure", message: "This application must be updated from its official website." };
   if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
   const target = installedMap.get(item.id) || item.packageId; // the version family that is really installed, not the catalog's pinned id
   // No --scope here: an app installed machine-wide would be filtered out and fail to update.
-  const result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON]);
+  const result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON], undefined, trackerFor(report));
   if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
   const verdict = winget.interpretUpgrade(result);
   if (verdict.ok && upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id);
@@ -255,8 +262,15 @@ async function runQueue(request) {
       if (!item) { const r = { id, name: id, status: "failure", message: "This application is not in the trusted catalog." }; results.push(r); sendProgress({ phase: "done", index, total, ...r }); continue; }
       if (batch.cancelled) { const r = { id, name: item.name, status: "skipped", reason: "cancelled", message: "Cancelled" }; results.push(r); sendProgress({ phase: "done", index, total, ...r }); continue; }
       sendProgress({ phase: "start", index, total, id, name: item.name, status: "pending", message: "In progress…" });
-      let outcome;
-      try { outcome = action === "update" ? await updateOne(item) : await installOne(item, preferUserScope); }
+      let outcome; let lastSent = 0, lastStage = "";
+      // Progress events are throttled (a progress bar redraws many times a second) but a change of stage always goes through.
+      const report = (update) => {
+        const now = Date.now();
+        if (update.stage === lastStage && update.stage !== "done" && now - lastSent < 120) return;
+        lastSent = now; lastStage = update.stage;
+        sendProgress({ phase: "progress", index, total, id, name: item.name, stage: update.stage, percent: update.percent, downloaded: update.downloaded, bytesTotal: update.total });
+      };
+      try { outcome = action === "update" ? await updateOne(item, report) : await installOne(item, preferUserScope, report); }
       catch (error) { outcome = { status: "failure", message: error.message || "Unexpected error" }; }
       const r = { id, name: item.name, ...outcome }; results.push(r);
       sendProgress({ phase: "done", index, total, ...r });

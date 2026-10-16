@@ -11,38 +11,82 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">O</div><div><strong>OpenInstall</strong><small>Software, sorted.</small></div></div>
-      <div class="sidebar-label">WORKSPACE</div>
-      <button class="nav-item active" data-view="discover"><span>▦</span> Discover</button>
-      <button class="nav-item" data-view="profiles"><span>✦</span> Setup profiles</button>
-      <button class="nav-item" data-view="installed"><span>✓</span> Installed apps</button>
-      <div class="sidebar-spacer"></div>
+      <nav class="side-scroll" aria-label="Main">
+        <div class="side-label">Workspace</div>
+        <button class="nav-item active" data-view="discover"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Discover</button>
+        <button class="nav-item" data-view="profiles"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.2 5.6 5.8.5-4.4 3.8 1.4 5.7L12 16.2 7 19.1l1.4-5.7L4 9.6l5.8-.5z"/></svg>Setup profiles</button>
+        <button class="nav-item" data-view="installed"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.3l2.6 2.6 5-5.4"/></svg>Installed apps</button>
+        <div class="side-label">Categories</div>
+        <div id="category-nav" class="category-nav"></div>
+      </nav>
       <div class="sidebar-note"><span class="status-dot"></span><span id="winget-status">Checking WinGet…</span></div>
-      <div class="sidebar-footer">Open-source-first · Windows<div class="version-row"><span id="app-version"></span><button id="check-updates" class="text-button">Check for updates</button></div></div>
+      <div class="sidebar-footer">Open-source-first, for Windows<div class="version-row"><span id="app-version"></span><button id="check-updates" class="text-button">Check for updates</button></div></div>
     </aside>
+
     <main class="main">
       <header class="topbar">
-        <div><div class="eyebrow">YOUR WINDOWS TOOLKIT</div><h1 id="page-title">Discover software</h1></div>
-        <div class="top-actions"><button id="refresh-btn" class="icon-button" title="Refresh installed apps">↻</button><button id="update-all" class="primary-button hidden">Update all</button><button id="selection-button" class="primary-button">Install selected <span id="selected-count">0</span></button></div>
+        <div><h1 id="page-title">Discover software</h1><p id="page-sub" class="page-sub">Pick what you need and OpenInstall sets it up.</p></div>
+        <div class="top-actions">
+          <button id="refresh-btn" class="icon-button" title="Refresh installed apps" aria-label="Refresh installed apps">↻</button>
+          <button id="update-all" class="primary-button hidden">Update all</button>
+          <button id="selection-button" class="primary-button install-button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.8L12 15.3l4.5-4.5M5 19.5h14"/></svg>
+            <span class="install-label">Install selected</span><span id="selected-count" class="count-pill">0</span>
+          </button>
+        </div>
       </header>
+
       <section id="update-banner" class="update-banner hidden" role="status" aria-live="polite"><div class="update-text"><strong id="update-title"></strong><span id="update-detail"></span></div><progress id="update-progress" class="hidden" max="100" value="0"></progress><div class="update-actions"><button id="update-notes" class="text-button hidden">What is new</button><button id="update-dismiss" class="text-button hidden">Later</button><button id="update-restart" class="primary-button hidden">Restart and update</button></div></section>
-      <section class="hero">
-        <div class="hero-copy"><span class="pill">ONE PLACE. YOUR APPS.</span><h2>A better start<br>for your PC.</h2><p>Discover useful software, choose what you need, and let OpenInstall handle the busywork.</p></div>
-        <div class="hero-art"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="hero-window"><div class="window-dots">● ● ●</div><div class="mock-row"><span class="mock-icon">✦</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">◈</span><span></span><i>✓</i></div><div class="mock-row"><span class="mock-icon">▣</span><span></span><i>+</i></div></div></div>
-      </section>
+
       <section class="toolbar">
-        <label class="search-box"><span>⌕</span><input id="search-input" type="search" placeholder="Search apps, categories, or descriptions…" autocomplete="off"></label>
-        <select id="category-filter" aria-label="Filter by category"><option value="all">All categories</option></select>
-        <select id="license-filter" aria-label="Filter by license"><option value="all">All licenses</option><option>Open source</option><option>Partly open source</option><option>Freeware</option><option>Proprietary</option></select>
+        <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="search-input" type="search" placeholder="Search apps, categories or what they do" autocomplete="off"><kbd>Ctrl K</kbd></label>
+        <div id="license-filter" class="segmented" role="group" aria-label="Filter by license">
+          <button class="seg active" data-license="all">All</button>
+          <button class="seg" data-license="Open source">Open source</button>
+          <button class="seg" data-license="Partly open source">Partly open</button>
+          <button class="seg" data-license="Freeware">Freeware</button>
+          <button class="seg" data-license="Proprietary">Proprietary</button>
+        </div>
       </section>
+      <section id="group-chips" class="group-chips hidden" aria-label="Subcategories"></section>
+
       <section id="profiles-panel" class="profiles-panel hidden"></section>
-      <section class="catalog-heading"><div><h3 id="section-title">Popular picks</h3><p id="result-count">Loading catalog…</p></div><div class="catalog-options"><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label><label class="scope-toggle" title="Off by default. Turning this on requests each logo from Google, DuckDuckGo or GitHub, which reveals which apps you are browsing."><input id="web-logos" type="checkbox"><span>Fetch app logos online</span></label></div></section>
+      <section id="catalog-heading" class="catalog-heading"><div><h3 id="section-title">Explore the catalog</h3><p id="result-count">Loading catalog…</p></div><div class="catalog-options"><label class="scope-toggle"><input id="user-scope" type="checkbox" checked><span>Prefer per-user installs</span></label><label class="scope-toggle" title="Off by default. Turning this on requests each logo from Google, DuckDuckGo or GitHub, which reveals which apps you are browsing."><input id="web-logos" type="checkbox"><span>Fetch app logos online</span></label></div></section>
       <p id="catalog-warning" class="catalog-warning hidden" role="alert"></p>
-      <section id="app-grid" class="app-grid"></section>
-      <section id="empty-state" class="empty-state hidden"><div>⌕</div><h3>No apps found</h3><p>Try a different search or category.</p></section>
-      <section id="queue-panel" class="queue-panel hidden"><div class="queue-head"><div><h3>Installation queue</h3><p id="queue-summary">Preparing selected apps…</p></div><div class="queue-actions"><button id="cancel-queue" class="text-button hidden">Cancel</button><button id="retry-failed" class="text-button hidden">Retry failed</button><button id="clear-queue" class="text-button">Clear results</button></div></div><div id="queue-list"></div></section>
+      <section id="app-grid" class="catalog"></section>
+      <section id="empty-state" class="empty-state hidden"><div>⌕</div><h3>No apps found</h3><p>Try a different search, category or license filter.</p></section>
       <footer>OpenInstall is early-stage software. Review publishers and approve Windows prompts only when you understand them.</footer>
     </main>
   </div>
+
+  <!-- Appears as soon as something is selected -->
+  <div id="dock" class="dock hidden" role="region" aria-label="Selected apps">
+    <div class="dock-info"><strong id="dock-count">0 apps selected</strong><span id="dock-names"></span></div>
+    <button id="dock-clear" class="text-button">Clear</button>
+    <button id="dock-install" class="primary-button install-button ready"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.8L12 15.3l4.5-4.5M5 19.5h14"/></svg>Install</button>
+  </div>
+
+  <!-- Live download / install progress -->
+  <aside id="queue-panel" class="tray hidden" aria-live="polite" aria-label="Installation queue">
+    <div class="tray-head">
+      <div class="tray-title"><strong id="queue-title">Installing</strong><span id="queue-summary">Preparing selected apps…</span></div>
+      <div class="queue-actions">
+        <button id="cancel-queue" class="text-button hidden">Cancel</button>
+        <button id="retry-failed" class="text-button hidden">Retry failed</button>
+        <button id="clear-queue" class="text-button">Clear</button>
+        <button id="tray-toggle" class="icon-chip" aria-label="Collapse" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 9.5l5.5 5.5 5.5-5.5"/></svg></button>
+      </div>
+    </div>
+    <div class="overall"><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="overall-bar"><i id="overall-fill"></i></div><span id="overall-pct" class="pct">0%</span></div>
+    <div id="queue-list" class="queue-list"></div>
+  </aside>
+
+  <!-- App details -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-backdrop" data-close></div>
+    <div id="modal-card" class="modal-card"></div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>

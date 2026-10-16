@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.0
+
+### Changed
+- **New black interface.** Neutral black surfaces, one cobalt accent used only for things you can act on (selection, install, progress), Segoe UI Variable type, and a search-first layout. The large banner was removed to give the catalog more room.
+- **Better categories.** Categories now live in the sidebar with icons and counts (replacing the dropdown). *All apps* is grouped by category with a short description for each, and the larger categories (Development, Utilities, Creative, Media, Documents, Everyday, Security) have subcategory chips such as *Databases*, *PDF tools* or *Passwords*. The license filter is now a segmented control.
+
+### Added
+- **Live download progress.** The installation queue is now a floating panel with an overall progress bar, a bar per app, and real download sizes taken from WinGet's output (downloading, verifying, installing, done). It stays visible while you scroll and can be collapsed.
+- **Install button highlight.** The moment you select an app, the *Install* button lights up and a floating bar shows what is selected, with a one-click *Install* and *Clear*.
+- **App details.** Every app has an *About* button that opens a panel with a full description, license, install method, and links to the official website and, where one exists, the GitHub repository. Search also looks inside these descriptions.
+- Catalog fields: `about` (required, at least 40 characters), `group` (optional subcategory) and `github` (optional repository link). `npm run check` validates them.
+- Setup profiles show the icons of the apps they contain.
+
+### Notes
+- Progress percentages come from parsing WinGet's text output. Downloads show real sizes; the installer step itself reports no numbers, so it shows an animated bar.
+
 ## 0.8.0
 
 ### Fixed

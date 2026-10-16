@@ -104,6 +104,8 @@ OpenInstall asks WinGet to install the package IDs stored in the `src/catalog-pa
 
 Catalog data lives in `src/catalog-part<N>.json` (any number of parts; `src/catalog-loader.js` discovers them, so the app and the validator always agree). Each entry contains a display name, category, description, WinGet package ID (except website entries), and a license classification. **Not every app is open source.** Application names, trademarks, binaries, and their licenses belong to their respective publishers. Listing an app is not an endorsement or guarantee of safety.
 
+Every entry must also have an `about` text (at least 40 characters), shown in the app's details panel, and a `source` link to the official website. Optional fields: `group` (a subcategory chip, such as `Databases`) and `github` (an `https://github.com/owner/repo` link shown next to the website). `npm run check` validates all of these.
+
 An entry may carry an optional `detectRegex` (matched against the lowercase package ID) when its `packageId` pins a major version; `npm run check` verifies that it compiles and matches its own ID.
 
 Before contributing an entry, verify the official publisher, exact package ID, license, supported Windows architecture, installation scope, and silent-install behavior. Do not add arbitrary shell commands or unverified download URLs.

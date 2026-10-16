@@ -14,6 +14,9 @@ for (const { file, index, item } of entries) {
   if (item.id) { if (ids.has(item.id)) errors.push(where + ": duplicate id (also " + ids.get(item.id) + ")"); ids.set(item.id, file); }
   if (item.license && !LICENSES.has(item.license)) errors.push(where + ": unknown license label " + item.license);
   if (item.source && !/^https:\/\//.test(item.source)) errors.push(where + ": source must be https");
+  if (typeof item.about !== "string" || item.about.trim().length < 40) errors.push(where + ": missing a description in `about` (at least 40 characters; it is shown in the details panel)");
+  if (item.group !== undefined && (typeof item.group !== "string" || !item.group.trim())) errors.push(where + ": group must be a non-empty string");
+  if (item.github !== undefined && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(item.github)) errors.push(where + ": github must look like https://github.com/owner/repo");
   if (item.sourceUrl && !/^https:\/\//.test(item.sourceUrl)) errors.push(where + ": sourceUrl must be https");
   if (item.installType === "winget") {
     if (!item.packageId || typeof item.packageId !== "string") errors.push(where + ": winget entry has no packageId");

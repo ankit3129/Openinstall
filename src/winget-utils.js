@@ -152,4 +152,33 @@ function parseUpgradeOutput(text, ids) {
 // unavailable) and guarantees the catalog ids are resolved against the repository they were verified in.
 const SOURCE_ARGS = Object.freeze(["--source", "winget"]);
 
-module.exports = { matchInstalled, parseUpgradeOutput, SOURCE_ARGS, CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, interpretUpgrade, parseExportJson };
+// ---------- Live progress ----------
+// WinGet prints a progress bar while it downloads ("  ██████▒▒▒▒  12.3 MB / 48.0 MB", redrawn with \r), then runs the
+// installer silently, which gives no numbers at all. The tracker turns that text into { stage, percent, downloaded, total }:
+//   starting (0-4%) -> downloading (5-75%, real bytes) -> verifying (78%) -> installing (85%, indeterminate) -> done (100%)
+const UNIT_BYTES = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 };
+const SIZE_PAIR = /(\d+(?:[.,]\d+)?)\s*(B|KB|MB|GB)\s*\/\s*(\d+(?:[.,]\d+)?)\s*(B|KB|MB|GB)/gi;
+const toBytes = (value, unit) => parseFloat(String(value).replace(",", ".")) * (UNIT_BYTES[String(unit).toUpperCase()] || 1);
+function createProgressTracker() {
+  let tail = "", stage = "starting", percent = 0, downloaded = 0, total = 0;
+  return {
+    // Feed raw output; returns the new state when something changed, otherwise null.
+    push(chunk) {
+      tail = (tail + String(chunk || "")).slice(-600);
+      const before = stage + "|" + percent + "|" + downloaded + "|" + total;
+      let sizes = null; for (const m of tail.matchAll(SIZE_PAIR)) sizes = m; // keep the last pair: the bar is redrawn in place
+      if (sizes) {
+        downloaded = toBytes(sizes[1], sizes[2]); total = toBytes(sizes[3], sizes[4]);
+        if (total > 0 && stage !== "verifying" && stage !== "installing" && stage !== "done") { stage = "downloading"; percent = Math.max(percent, Math.min(75, 5 + Math.round(70 * Math.min(1, downloaded / total)))); }
+      } else if (/Downloading\s+https?:/i.test(tail) && stage === "starting") { stage = "downloading"; percent = Math.max(percent, 5); }
+      if (stage === "starting" && /Found\s.+\[/.test(tail)) percent = Math.max(percent, 3);
+      if (/Successfully verified installer hash/i.test(tail) && stage !== "installing" && stage !== "done") { stage = "verifying"; percent = Math.max(percent, 78); }
+      if (/Starting package install/i.test(tail) && stage !== "done") { stage = "installing"; percent = Math.max(percent, 85); }
+      if (/Successfully (installed|upgraded)/i.test(tail)) { stage = "done"; percent = 100; }
+      return before === stage + "|" + percent + "|" + downloaded + "|" + total ? null : { stage, percent, downloaded, total };
+    },
+    get state() { return { stage, percent, downloaded, total }; }
+  };
+}
+
+module.exports = { createProgressTracker, matchInstalled, parseUpgradeOutput, SOURCE_ARGS, CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, interpretUpgrade, parseExportJson };

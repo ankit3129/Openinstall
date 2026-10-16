@@ -28,7 +28,8 @@ function killTree(child, { platform = process.platform, graceMs = 5000 } = {}) {
 function createRunner({ command = "winget", prefixArgs = [], maxOutput = 64 * 1024 } = {}) {
   const active = new Map(); // child -> { cancelled }
 
-  function run(args, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  // onData(chunk) is optional: it receives every piece of output as it arrives (used for live progress bars).
+  function run(args, timeoutMs = DEFAULT_TIMEOUT_MS, onData) {
     return new Promise((resolve) => {
       let child;
       try { child = spawn(command, [...prefixArgs, ...args], { windowsHide: true, shell: false }); }
@@ -43,8 +44,8 @@ function createRunner({ command = "winget", prefixArgs = [], maxOutput = 64 * 10
         : { ok: false, code: null, timedOut: true, output: combined(), error: "Timed out waiting for WinGet." };
       const timer = setTimeout(() => { state.timedOut = true; killTree(child).then(() => finish(interrupted())); }, timeoutMs);
       child.stdout.setEncoding("utf8"); child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => { stdout = winget.capAppend(stdout, chunk, maxOutput); });
-      child.stderr.on("data", (chunk) => { stderr = winget.capAppend(stderr, chunk, maxOutput); });
+      child.stdout.on("data", (chunk) => { stdout = winget.capAppend(stdout, chunk, maxOutput); if (onData) { try { onData(chunk); } catch { /* a broken listener must not break the install */ } } });
+      child.stderr.on("data", (chunk) => { stderr = winget.capAppend(stderr, chunk, maxOutput); if (onData) { try { onData(chunk); } catch { /* ignore */ } } });
       child.on("error", (error) => finish({ ok: false, code: null, output: combined(), error: error.code === "ENOENT" ? "WinGet was not found." : error.message }));
       child.on("close", (code) => {
         if (state.cancelled || state.timedOut) { finish(interrupted()); return; }

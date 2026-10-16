@@ -80,6 +80,24 @@ test("the real catalog loads with no errors", () => {
   assert.deepEqual(r.errors, []); assert.ok(r.entries.length > 100);
 });
 
+test("progress tracker turns WinGet output into stages and a download percentage", () => {
+  const t = w.createProgressTracker();
+  assert.equal(t.push("Found Foo [Bar.Foo] Version 1.0\r\n").percent, 3);
+  assert.equal(t.push("Downloading https://example.com/foo.exe\r\n").stage, "downloading");
+  const half = t.push("  ██████████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒  24.0 MB / 48.0 MB\r");
+  assert.equal(half.stage, "downloading"); assert.equal(half.percent, 40); assert.equal(half.total, 48 * 1024 * 1024);
+  assert.equal(t.push("  ██████████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒  24.0 MB / 48.0 MB\r"), null); // nothing changed
+  assert.equal(t.push("  ██████████████████████████████  48.0 MB / 48.0 MB\r").percent, 75);
+  assert.equal(t.push("Successfully verified installer hash\r\n").stage, "verifying");
+  assert.equal(t.push("Starting package install...\r\n").stage, "installing");
+  const done = t.push("Successfully installed\r\n"); assert.equal(done.stage, "done"); assert.equal(done.percent, 100);
+});
+test("progress tracker copes with split chunks, KB units and never moves backwards", () => {
+  const t = w.createProgressTracker();
+  t.push("  ████▒▒▒▒  512 KB / 1");
+  const s = t.push("024 KB\r"); assert.equal(s.percent, 40);
+  const back = t.push("  ██▒▒▒▒▒▒  100 KB / 1024 KB\r"); assert.ok(!back || back.percent >= 40);
+});
 test("matchInstalled finds the exact pinned id and, via detectRegex, other versions of the same family", () => {
   const python = { packageId: "Python.Python.3.13", detectRegex: "^python\\.python\\.3\\.\\d+$" };
   assert.equal(w.matchInstalled(python, new Set(["python.python.3.13"])), "python.python.3.13");

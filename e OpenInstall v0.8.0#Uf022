@@ -1,0 +1,31 @@
+warning: in the working copy of '.github/workflows/build-windows.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'CHANGELOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/test.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/validate-catalog.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/verify-winget-ids.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/preload.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/renderer.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/styles.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/winget-utils.js', LF will be replaced by CRLF the next time Git touches it
+ .github/workflows/build-windows.yml |  63 [32m++++++[m[31m----[m
+ CHANGELOG.md                        |  29 [32m+++++[m
+ README.md                           |  27 [32m++[m[31m--[m
+ package-lock.json                   |   4 [32m+[m[31m-[m
+ package.json                        |   7 [32m+[m[31m-[m
+ scripts/test.js                     |  79 [32m+++++++++++[m[31m-[m
+ scripts/validate-catalog.js         |   6 [32m+[m[31m-[m
+ scripts/verify-winget-ids.js        |   2 [32m+[m[31m-[m
+ src/catalog-part1.json              |   2 [32m+[m[31m-[m
+ src/catalog-part3.json              |   2 [32m+[m[31m-[m
+ src/index.html                      |   6 [32m+[m[31m-[m
+ src/main.js                         | 243 [32m++++++++++++++++++++++[m[31m--------------[m
+ src/preload.js                      |  10 [32m+[m[31m-[m
+ src/renderer.js                     | 177 [32m+++++++++++++++++[m[31m---------[m
+ src/styles.css                      |   9 [32m++[m
+ src/winget-utils.js                 |  38 [32m+++++[m[31m-[m
+ 16 files changed, 494 insertions(+), 210 deletions(-)
