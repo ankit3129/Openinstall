@@ -2,6 +2,9 @@
 
 ## 0.9.0
 
+### Fixed
+- The **Update** button and **Update all** now appear only for apps WinGet reported as having a newer version. Before, every installed app had an Update button that did nothing when no update existed.
+
 ### Changed
 - **New black interface.** Neutral black surfaces, one cobalt accent used only for things you can act on (selection, install, progress), Segoe UI Variable type, and a search-first layout. The large banner was removed to give the catalog more room.
 - **Better categories.** Categories now live in the sidebar with icons and counts (replacing the dropdown). *All apps* is grouped by category with a short description for each, and the larger categories (Development, Utilities, Creative, Media, Documents, Everyday, Security) have subcategory chips such as *Databases*, *PDF tools* or *Passwords*. The license filter is now a segmented control.

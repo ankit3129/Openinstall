@@ -190,24 +190,25 @@ function renderInstalledView() {
   $("#result-count").textContent = plural(apps.length, "installed app") + " detected" + (upgradable ? ", " + upgradable.size + " with updates" : "");
   $("#app-grid").innerHTML = '<div class="app-grid">' + apps.map((app) => {
     const hasUpdate = upgradable ? upgradable.has(app.id) : false;
-    const action = app.installType === "website" ? "" : '<button class="update-app" data-update="' + escapeHtml(app.id) + '"' + (state.busy ? " disabled" : "") + '>' + "Update" + '</button>';
+    // Only offer Update when WinGet itself reported a newer version; otherwise the button would do nothing.
+    const action = (app.installType === "website" || !hasUpdate) ? "" : '<button class="update-app" data-update="' + escapeHtml(app.id) + '"' + (state.busy ? " disabled" : "") + '>' + "Update" + '</button>';
     return '<article class="app-card"><div class="app-card-top">' + appIconMarkup(app) + '<div class="card-actions"><button class="info-btn" data-info="' + escapeHtml(app.id) + '" aria-label="About ' + escapeHtml(app.name) + '" title="About this app">' + INFO_ICON + '</button>' + action + '</div></div><div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' +
       (hasUpdate ? '<span class="update-badge">Update available</span>' : '<span class="installed-badge">Installed</span>') + '</div><p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span class="cat-tag">' + escapeHtml(app.category) + '</span></div></article>';
   }).join("") + "</div>";
   wireLogoFallbacks($("#app-grid")); $("#empty-state").classList.toggle("hidden", apps.length > 0); $("#app-grid").classList.toggle("hidden", apps.length === 0);
   updateUpdateAll(); updateSelectionUI();
 }
-// "Update all" updates the apps known to have a newer version; if the check could not run, it tries every installed app.
+// "Update all" updates only the apps WinGet reported as having a newer version (nothing if the check could not run).
 function updateAllIds() {
-  const updatable = (app) => state.installed.has(app.id) && app.installType !== "website";
-  return state.catalog.filter((app) => updatable(app) && (!state.upgradable || state.upgradable.has(app.id))).map((app) => app.id);
+  if (!state.upgradable) return [];
+  return state.catalog.filter((app) => state.installed.has(app.id) && app.installType !== "website" && state.upgradable.has(app.id)).map((app) => app.id);
 }
 function updateUpdateAll() {
   const button = $("#update-all"); const show = state.view === "installed";
   button.classList.toggle("hidden", !show); if (!show) return;
   const ids = updateAllIds();
   button.disabled = state.busy || ids.length === 0;
-  button.textContent = state.upgradable && ids.length === 0 ? "All up to date ✓" : "Update all" + (state.upgradable ? " (" + ids.length + ")" : "");
+  button.textContent = !state.upgradable ? (state.upgradeChecked ? "Update check unavailable" : "Checking for updates…") : ids.length === 0 ? "All up to date ✓" : "Update all (" + ids.length + ")";
 }
 function renderProfiles() {
   $("#profiles-panel").innerHTML = profiles.map((profile, index) => {
