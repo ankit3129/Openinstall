@@ -2,9 +2,8 @@
 
 ## 0.9.0
 
-### Fixed
-- **Update** no longer stops at "WinGet does not see this app as installed" (seen with Docker Desktop). If the first upgrade lookup fails it retries without the source filter, then reinstalls the latest version over the old one.
-- The **Update** button and **Update all** now appear only for apps WinGet reported as having a newer version. Before, every installed app had an Update button that did nothing when no update existed.
+### Removed
+- Updating installed apps from OpenInstall (the Update button, Update all, and Update available badges). It could not update some apps reliably (for example Docker Desktop). Use `winget upgrade` or the app itself to update them. Updating OpenInstall itself is unchanged.
 
 ### Changed
 - **New black interface.** Neutral black surfaces, one cobalt accent used only for things you can act on (selection, install, progress), Segoe UI Variable type, and a search-first layout. The large banner was removed to give the catalog more room.

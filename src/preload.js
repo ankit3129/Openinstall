@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld("openInstall", Object.freeze({
   getCatalogWarnings: () => ipcRenderer.invoke("catalog:warnings"),
   checkWinget: () => ipcRenderer.invoke("system:winget"),
   getInstalled: () => ipcRenderer.invoke("apps:installed"),
-  getUpgradable: () => ipcRenderer.invoke("apps:upgradable"),
   runQueue: (request) => ipcRenderer.invoke("queue:run", request),
   cancelQueue: () => ipcRenderer.invoke("queue:cancel"),
   onQueueProgress: (callback) => {

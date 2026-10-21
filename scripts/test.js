@@ -30,11 +30,6 @@ test("install: success, already installed (by code and by text), reboot, known e
   assert.equal(unknown.ok, false); assert.match(unknown.message, /exited with code/);
   assert.match(w.interpretInstall({ ok: false, code: null, output: "", error: "Timed out waiting for WinGet." }).message, /Timed out/);
 });
-test("upgrade: up to date counts as success; missing package is a failure", () => {
-  assert.equal(w.interpretUpgrade({ ok: false, code: 0x8A15002B, output: "" }).ok, true);
-  assert.equal(w.interpretUpgrade({ ok: false, code: 1, output: "No newer package versions are available" }).ok, true);
-  assert.equal(w.interpretUpgrade({ ok: false, code: 0x8A150014, output: "" }).ok, false);
-});
 test("scope fallback is decided by exit code only (words like 'scope' in the output must not trigger an elevated retry)", () => {
   assert.equal(w.isScopeFallback({ ok: false, code: 0x8A150010, output: "" }), true);
   assert.equal(w.isScopeFallback({ ok: false, code: -1978335216, output: "" }), true); // same code, signed
@@ -106,12 +101,6 @@ test("matchInstalled finds the exact pinned id and, via detectRegex, other versi
   assert.equal(w.matchInstalled({ packageId: "Git.Git" }, new Set(["git.git.beta"])), null); // no detectRegex: exact match only
   assert.equal(w.matchInstalled({ packageId: "A.B", detectRegex: "(" }, new Set(["a.c"])), null); // a broken regex never throws
 });
-test("parseUpgradeOutput finds known ids as whole tokens in a localized table", () => {
-  const out = "Name        Id                  Version  Verfuegbar\r\n-----\r\nGit         Git.Git             2.50.0   2.51.0\r\nPython 3    Python.Python.3.14  3.14.0   3.14.1\r\nVLC  VideoLAN.VLC.Nightly 1 2\r\n2 Aktualisierungen verfuegbar.";
-  const found = w.parseUpgradeOutput(out, ["Git.Git", "python.python.3.14", "VideoLAN.VLC", "Mozilla.Firefox"]);
-  assert.deepEqual([...found].sort(), ["git.git", "python.python.3.14"]);
-  assert.equal(w.parseUpgradeOutput("", ["Git.Git"]).size, 0);
-});
 test("every WinGet call can be pinned to the community source", () => {
   assert.deepEqual([...w.SOURCE_ARGS], ["--source", "winget"]);
 });
@@ -165,9 +154,3 @@ test("killTree resolves only after the child has exited", async () => {
   console.log(passed + " tests passed" + (process.exitCode ? ", with failures" : "") + ".");
 })();
 
-test("upgrade parsing: truncated ids match only when unambiguous", () => {
-  const w = require("../src/winget-utils");
-  const ids = ["microsoft.visualstudiocode", "jetbrains.intellijidea.community", "jetbrains.intellijidea.ultimate", "git.git"];
-  const out = "Visual Studio Code  Microsoft.VisualStudioC…  1.9  1.95  winget\nIntelliJ  JetBrains.IntelliJIDEA.…  1  2  winget\nGit  Git.Git  1  2  winget";
-  assert.deepStrictEqual([...w.parseUpgradeOutput(out, ids)].sort(), ["git.git", "microsoft.visualstudiocode"]);
-});

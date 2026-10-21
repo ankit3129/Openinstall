@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { catalog: [], selected: new Set(), installed: new Set(), upgradable: null, upgradeChecked: false, view: "discover", busy: false, category: "all", group: "all", license: "all", detailId: null };
+const state = { catalog: [], selected: new Set(), installed: new Set(), view: "discover", busy: false, category: "all", group: "all", license: "all", detailId: null };
 let failedIds = [];
 let profiles = [];
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -186,29 +186,13 @@ function renderApps() {
 function renderInstalledView() {
   const query = $("#search-input").value.trim().toLowerCase();
   const apps = state.catalog.filter((app) => state.installed.has(app.id) && (!query || app._hay.includes(query)));
-  const upgradable = state.upgradable;
-  $("#result-count").textContent = plural(apps.length, "installed app") + " detected" + (upgradable ? ", " + upgradable.size + " with updates" : "");
+  $("#result-count").textContent = plural(apps.length, "installed app") + " detected";
   $("#app-grid").innerHTML = '<div class="app-grid">' + apps.map((app) => {
-    const hasUpdate = upgradable ? upgradable.has(app.id) : false;
-    // Only offer Update when WinGet itself reported a newer version; otherwise the button would do nothing.
-    const action = (app.installType === "website" || !hasUpdate) ? "" : '<button class="update-app" data-update="' + escapeHtml(app.id) + '"' + (state.busy ? " disabled" : "") + '>' + "Update" + '</button>';
-    return '<article class="app-card"><div class="app-card-top">' + appIconMarkup(app) + '<div class="card-actions"><button class="info-btn" data-info="' + escapeHtml(app.id) + '" aria-label="About ' + escapeHtml(app.name) + '" title="About this app">' + INFO_ICON + '</button>' + action + '</div></div><div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' +
-      (hasUpdate ? '<span class="update-badge">Update available</span>' : '<span class="installed-badge">Installed</span>') + '</div><p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span class="cat-tag">' + escapeHtml(app.category) + '</span></div></article>';
+    return '<article class="app-card"><div class="app-card-top">' + appIconMarkup(app) + '<div class="card-actions"><button class="info-btn" data-info="' + escapeHtml(app.id) + '" aria-label="About ' + escapeHtml(app.name) + '" title="About this app">' + INFO_ICON + '</button>' + '</div></div><div class="app-title-row"><h3>' + escapeHtml(app.name) + '</h3>' +
+      '<span class="installed-badge">Installed</span>' + '</div><p class="app-description">' + escapeHtml(app.description) + '</p><div class="app-meta"><span class="cat-tag">' + escapeHtml(app.category) + '</span></div></article>';
   }).join("") + "</div>";
   wireLogoFallbacks($("#app-grid")); $("#empty-state").classList.toggle("hidden", apps.length > 0); $("#app-grid").classList.toggle("hidden", apps.length === 0);
-  updateUpdateAll(); updateSelectionUI();
-}
-// "Update all" updates only the apps WinGet reported as having a newer version (nothing if the check could not run).
-function updateAllIds() {
-  if (!state.upgradable) return [];
-  return state.catalog.filter((app) => state.installed.has(app.id) && app.installType !== "website" && state.upgradable.has(app.id)).map((app) => app.id);
-}
-function updateUpdateAll() {
-  const button = $("#update-all"); const show = state.view === "installed";
-  button.classList.toggle("hidden", !show); if (!show) return;
-  const ids = updateAllIds();
-  button.disabled = state.busy || ids.length === 0;
-  button.textContent = !state.upgradable ? (state.upgradeChecked ? "Update check unavailable" : "Checking for updates…") : ids.length === 0 ? "All up to date ✓" : "Update all (" + ids.length + ")";
+  updateSelectionUI();
 }
 function renderProfiles() {
   $("#profiles-panel").innerHTML = profiles.map((profile, index) => {
@@ -300,31 +284,18 @@ function refreshInstalled() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     $("#refresh-btn").classList.add("spinning");
-    try { state.installed = new Set(await window.openInstall.getInstalled()); state.upgradable = null; state.upgradeChecked = false; renderApps(); }
+    try { state.installed = new Set(await window.openInstall.getInstalled()); renderApps(); }
     catch { $("#winget-status").textContent = "Could not check installed apps"; }
     finally { $("#refresh-btn").classList.remove("spinning"); }
-    if (state.view === "installed") await refreshUpgradable();
   })().finally(() => { refreshPromise = null; });
   return refreshPromise;
-}
-// One `winget upgrade` call tells us which installed apps have updates (null = could not tell).
-let upgradablePromise = null;
-function refreshUpgradable() {
-  if (upgradablePromise) return upgradablePromise;
-  upgradablePromise = (async () => {
-    state.upgradeChecked = true;
-    try { const list = await window.openInstall.getUpgradable(); state.upgradable = Array.isArray(list) ? new Set(list) : null; }
-    catch { state.upgradable = null; }
-    if (state.view === "installed") renderApps();
-  })().finally(() => { upgradablePromise = null; });
-  return upgradablePromise;
 }
 
 // The queue itself runs in the main process (so it survives UI re-renders, can be cancelled, and is covered by the close prompt).
 // The window only shows progress events and the final result.
 let queueRows = []; let queueAction = "install"; let queueTotal = 0; let queueFinished = false;
 window.openInstall.onQueueProgress((event) => {
-  const verb = queueAction === "update" ? "Updating " : "Installing ";
+  const verb = "Installing ";
   queueTotal = event.total || queueTotal;
   if (event.phase === "progress") {
     const row = queueRows[event.index];
@@ -344,14 +315,13 @@ function setQueueRunning(running) {
   $("#cancel-queue").classList.toggle("hidden", !running); $("#cancel-queue").disabled = false; $("#cancel-queue").textContent = "Cancel";
   $("#clear-queue").classList.toggle("hidden", running);
   if (running) $("#retry-failed").classList.add("hidden");
-  document.querySelectorAll(".update-app").forEach((button) => { button.disabled = running; });
 }
 async function runQueue(action, ids, label) {
   if (state.busy || ids.length === 0) return;
   state.busy = true; queueAction = action; queueRows = []; failedIds = []; queueTotal = ids.length; queueFinished = false;
   $("#queue-panel").classList.remove("collapsed"); $("#tray-toggle").setAttribute("aria-expanded", "true");
-  updateSelectionUI(); updateUpdateAll(); setQueueRunning(true);
-  renderQueue([], (action === "update" ? "Updating " : "Installing ") + (label || ids.length + " apps") + "…", action === "update" ? "Updating apps" : "Installing apps");
+  updateSelectionUI(); setQueueRunning(true);
+  renderQueue([], "Installing " + (label || ids.length + " apps") + "…", "Installing apps");
   let outcome;
   try { outcome = await window.openInstall.runQueue({ action, ids, preferUserScope: $("#user-scope").checked }); }
   catch (error) { outcome = { ok: false, error: error.message }; }
@@ -360,22 +330,19 @@ async function runQueue(action, ids, label) {
     queueRows = [{ name: "OpenInstall", status: "failure", message: (outcome && outcome.error) || "The queue could not run." }];
     renderQueue(queueRows, "Could not run the queue", "Something went wrong");
   } else {
-    const counts = { installed: 0, updated: 0, current: 0, opened: 0, already: 0, cancelled: 0, failed: 0, reboot: 0 };
+    const counts = { installed: 0, opened: 0, already: 0, cancelled: 0, failed: 0, reboot: 0 };
     queueRows = outcome.results.map((r) => {
-      if (r.status === "success") { if (r.upToDate) counts.current++; else if (action === "update") counts.updated++; else counts.installed++; if (r.rebootRequired) counts.reboot++; }
+      if (r.status === "success") { counts.installed++; if (r.rebootRequired) counts.reboot++; }
       else if (r.status === "opened") counts.opened++;
       else if (r.status === "skipped") { if (r.reason === "cancelled") counts.cancelled++; else counts.already++; }
       else { counts.failed++; failedIds.push(r.id); }
       // Keep local state in step with what just happened instead of rescanning with a slow `winget export`.
       if (r.status === "success" && action === "install") state.installed.add(r.id);
-      if (r.status === "success" && action === "update" && state.upgradable) state.upgradable.delete(r.id);
       if (r.status !== "failure" && !(r.status === "skipped" && r.reason === "cancelled")) state.selected.delete(r.id);
       return { name: r.name, status: r.status, message: r.message, details: r.details };
     });
     const parts = [];
     if (counts.installed) parts.push(counts.installed + " installed");
-    if (counts.updated) parts.push(counts.updated + " updated");
-    if (counts.current) parts.push(counts.current + " already up to date");
     if (counts.opened) parts.push(counts.opened + " download " + (counts.opened === 1 ? "page" : "pages") + " opened");
     if (counts.already) parts.push(counts.already + " already installed");
     if (counts.cancelled) parts.push(counts.cancelled + " cancelled");
@@ -384,13 +351,12 @@ async function runQueue(action, ids, label) {
     renderQueue(queueRows, parts.join(", ") || "Nothing to do", counts.failed ? "Finished with problems" : counts.cancelled ? "Cancelled" : "All done");
   }
   $("#retry-failed").classList.toggle("hidden", failedIds.length === 0);
-  state.busy = false; renderApps(); updateUpdateAll();
+  state.busy = false; renderApps();
 }
 function installSelected() {
   const ids = state.catalog.filter((app) => state.selected.has(app.id)).map((app) => app.id);
   return runQueue("install", ids, plural(ids.length, "app"));
 }
-function updateInstalledApp(app) { return runQueue("update", [app.id], app.name); }
 
 // ---------- Navigation and events ----------
 const VIEW_TEXT = {
@@ -406,8 +372,7 @@ function setView(view) {
   $("#license-filter").classList.toggle("hidden", view !== "discover"); $("#catalog-heading").classList.toggle("hidden", view === "profiles");
   $("#page-title").textContent = VIEW_TEXT[view][0]; $("#page-sub").textContent = VIEW_TEXT[view][1];
   $("#section-title").textContent = view === "profiles" ? "Choose a starting point" : view === "installed" ? "Detected through WinGet" : "Browse by category";
-  renderApps(); updateUpdateAll();
-  if (view === "installed" && !state.upgradeChecked && !state.busy) refreshUpgradable();
+  renderApps();
 }
 // Toggle in place instead of re-rendering the whole grid.
 function setSelected(id, on) {
@@ -430,7 +395,7 @@ document.addEventListener("click", async (event) => {
   const groupButton = t.closest("[data-group]"); if (groupButton) { state.group = groupButton.dataset.group; renderApps(); return; }
   const licenseButton = t.closest("[data-license]");
   if (licenseButton) { state.license = licenseButton.dataset.license; document.querySelectorAll("#license-filter .seg").forEach((b) => b.classList.toggle("active", b === licenseButton)); renderApps(); return; }
-  const profileButton = t.closest("[data-profile]"); const navButton = t.closest("[data-view]"); const updateButton = t.closest("[data-update]");
+  const profileButton = t.closest("[data-profile]"); const navButton = t.closest("[data-view]");
   // The whole card is a click target (not only the small + button); the + button keeps working for keyboard users.
   const card = t.closest(".app-card[data-app]");
   if (card && state.view === "discover") { const id = card.dataset.app; setSelected(id, !state.selected.has(id)); }
@@ -438,14 +403,12 @@ document.addEventListener("click", async (event) => {
     const profile = profiles[Number(profileButton.dataset.profile)]; const known = new Set(state.catalog.map((app) => app.id));
     profile.ids.forEach((id) => { if (known.has(id)) state.selected.add(id); }); state.category = "all"; state.group = "all"; setView("discover"); bumpInstallButtons();
   }
-  if (updateButton) { const app = state.catalog.find((a) => a.id === updateButton.dataset.update); if (app) updateInstalledApp(app); }
   if (navButton) { if (navButton.dataset.view === "discover") { state.category = "all"; state.group = "all"; } setView(navButton.dataset.view); }
 });
 let searchTimer;
 $("#search-input").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderApps, 120); });
 $("#selection-button").addEventListener("click", installSelected); $("#dock-install").addEventListener("click", installSelected); $("#refresh-btn").addEventListener("click", refreshInstalled);
 $("#dock-clear").addEventListener("click", () => { const ids = [...state.selected]; state.selected.clear(); ids.forEach((id) => setSelected(id, false)); updateSelectionUI(); });
-$("#update-all").addEventListener("click", () => { const ids = updateAllIds(); runQueue("update", ids, plural(ids.length, "app")); });
 $("#cancel-queue").addEventListener("click", async () => { const button = $("#cancel-queue"); button.disabled = true; button.textContent = "Cancelling…"; try { await window.openInstall.cancelQueue(); } catch {} });
 $("#retry-failed").addEventListener("click", () => { const ids = [...failedIds]; runQueue(queueAction, ids, ids.length + " failed " + (ids.length === 1 ? "app" : "apps")); });
 $("#clear-queue").addEventListener("click", () => { $("#queue-panel").classList.add("hidden"); $("#queue-list").innerHTML = ""; failedIds = []; $("#retry-failed").classList.add("hidden"); });

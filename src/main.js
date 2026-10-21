@@ -106,8 +106,6 @@ async function ensureWinget() { return wingetOk === true || (await checkWinget()
 // installedMap: catalog id -> lowercase package id that is really installed (may differ from the catalog's pinned id, see detectRegex).
 let installedMap = new Map();
 let installedPromise = null;
-let upgradableCache = null; // array of catalog ids, or null when unknown
-let upgradablePromise = null;
 const WINGET_COMMON = ["--accept-source-agreements", "--disable-interactivity"];
 const SRC = winget.SOURCE_ARGS;
 const installedIds = () => [...installedMap.keys()];
@@ -150,27 +148,12 @@ function scanInstalled() {
       let found = null;
       try { found = await scanViaExport(); } catch (error) { console.error("winget export scan failed:", error); }
       if (!found) found = await scanPerPackage();
-      installedMap = found; upgradableCache = null;
+      installedMap = found;
       return installedIds();
     })().finally(() => { installedPromise = null; });
   }
   return installedPromise;
 }
-// Which installed catalog apps have a newer version? One `winget upgrade` call instead of one per app.
-function scanUpgradable() {
-  if (!upgradablePromise) {
-    upgradablePromise = (async () => {
-      const result = await runWinget(["upgrade", ...SRC, ...WINGET_COMMON], 120000);
-      const usable = result.output && (result.ok || winget.normalizeCode(result.code) === winget.CODES.NO_PACKAGES_FOUND);
-      if (!usable) return null;
-      const byPackage = new Map([...installedMap].map(([id, pkg]) => [pkg, id]));
-      const hits = winget.parseUpgradeOutput(result.output, byPackage.keys());
-      return [...hits].map((pkg) => byPackage.get(pkg)).filter(Boolean);
-    })().then((list) => { upgradableCache = list; return list; }).finally(() => { upgradablePromise = null; });
-  }
-  return upgradablePromise;
-}
-
 // ---------- External links ----------
 // Only open links that belong to the catalog or to this project's own release page.
 const allowedPrefixes = new Set();
@@ -185,7 +168,7 @@ catalog.forEach((item) => { addAllowed(item.source); addAllowed(item.sourceUrl);
 if (publishConfig.owner && publishConfig.repo) addAllowed("https://github.com/" + publishConfig.owner + "/" + publishConfig.repo + "/");
 const isAllowedExternal = (url) => url.protocol === "https:" && [...allowedPrefixes].some((prefix) => url.href.startsWith(prefix));
 
-// ---------- Install / update queue ----------
+// ---------- Install queue ----------
 // The whole queue runs here, not in the window: it keeps going (and stays guarded by the close prompt) between items,
 // can be cancelled, and the window only receives progress events.
 let batch = null; // { cancelled: boolean } while a queue is running
@@ -232,41 +215,13 @@ async function installOne(item, preferUserScope, report) {
   const note = retried ? " (no per-user installer exists, so it was installed machine-wide)" : "";
   const out = describe(result, verdict, retried && verdict.ok ? note : "");
   if (retried && !verdict.ok) out.details = ("Retried without per-user scope. " + out.details).trim();
-  if (verdict.ok) { installedMap.set(item.id, item.packageId.toLowerCase()); if (upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id); }
+  if (verdict.ok) { installedMap.set(item.id, item.packageId.toLowerCase()); }
   return out;
-}
-
-async function updateOne(item, report) {
-  if (!item.packageId || item.installType === "website") return { status: "failure", message: "This application must be updated from its official website." };
-  if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
-  const target = installedMap.get(item.id) || item.packageId; // the version family that is really installed, not the catalog's pinned id
-  const common = ["--silent", "--accept-package-agreements", ...WINGET_COMMON];
-  const notFound = (r) => !r.ok && !r.cancelled && winget.normalizeCode(r.code) === winget.CODES.NO_PACKAGES_FOUND;
-  const cancelled = { status: "skipped", reason: "cancelled", message: "Cancelled" };
-  // 1) Normal upgrade. No --scope here: an app installed machine-wide would be filtered out and fail to update.
-  let result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, ...common], undefined, trackerFor(report));
-  if (result.cancelled) return cancelled;
-  // 2) The "Update available" badge comes from `winget upgrade`, but looking the app up by id can still say "not installed"
-  //    (apps WinGet tracks through Windows' installed-programs list, e.g. Docker Desktop). Try again without the source filter.
-  if (notFound(result)) {
-    result = await runWinget(["upgrade", "--id", target, "--exact", ...common], undefined, trackerFor(report));
-    if (result.cancelled) return cancelled;
-  }
-  let verdict = winget.interpretUpgrade(result);
-  // 3) Last resort: run the same installer path that installed the app, forced, which puts the newest version over the old one.
-  if (notFound(result)) {
-    result = await runWinget(["install", "--id", target, "--exact", ...SRC, "--force", ...common], undefined, trackerFor(report));
-    if (result.cancelled) return cancelled;
-    verdict = winget.interpretInstall(result);
-    if (verdict.ok && !verdict.rebootRequired) verdict = { ...verdict, message: "Updated to the latest version." };
-  }
-  if (verdict.ok && upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id);
-  return describe(result, verdict);
 }
 
 async function runQueue(request) {
   if (batch) return { ok: false, error: "Another queue is already running." };
-  const action = request && request.action === "update" ? "update" : "install";
+  const action = "install";
   const requested = Array.isArray(request && request.ids) ? [...new Set(request.ids.filter((id) => typeof id === "string"))] : [];
   if (!requested.length) return { ok: false, error: "Nothing was selected." };
   const preferUserScope = !request || request.preferUserScope !== false;
@@ -287,7 +242,7 @@ async function runQueue(request) {
         lastSent = now; lastStage = update.stage;
         sendProgress({ phase: "progress", index, total, id, name: item.name, stage: update.stage, percent: update.percent, downloaded: update.downloaded, bytesTotal: update.total });
       };
-      try { outcome = action === "update" ? await updateOne(item, report) : await installOne(item, preferUserScope, report); }
+      try { outcome = await installOne(item, preferUserScope, report); }
       catch (error) { outcome = { status: "failure", message: error.message || "Unexpected error" }; }
       const r = { id, name: item.name, ...outcome }; results.push(r);
       sendProgress({ phase: "done", index, total, ...r });
@@ -313,14 +268,8 @@ ipcMain.handle("update:install", () => {
 ipcMain.handle("system:winget", () => checkWinget());
 ipcMain.handle("apps:installed", async () => {
   if (activeOps > 0) return installedIds(); // do not fight a running install for winget
-  if (!(await ensureWinget())) { installedMap = new Map(); upgradableCache = null; return []; }
+  if (!(await ensureWinget())) { installedMap = new Map(); return []; }
   return scanInstalled();
-});
-ipcMain.handle("apps:upgradable", async () => {
-  if (activeOps > 0) return upgradableCache;
-  if (!(await ensureWinget())) return null;
-  if (installedPromise) await installedPromise.catch(() => {});
-  return scanUpgradable();
 });
 ipcMain.handle("queue:run", (_event, request) => runQueue(request));
 ipcMain.handle("queue:cancel", async () => {

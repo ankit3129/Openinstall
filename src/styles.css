@@ -130,17 +130,14 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 .select-app.checked{background:var(--accent);border-color:var(--accent);color:#fff;font-size:15px}
 .app-title-row{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .app-card h3{font-size:14px;font-weight:600;margin:0;line-height:1.35;overflow-wrap:anywhere}
-.installed-badge,.update-badge{font-size:10.5px;border-radius:var(--r-pill);padding:2px 8px;white-space:nowrap}
+.installed-badge{font-size:10.5px;border-radius:var(--r-pill);padding:2px 8px;white-space:nowrap}
 .installed-badge{color:var(--ok);background:rgba(95,211,160,.1);border:1px solid rgba(95,211,160,.28)}
-.update-badge{color:var(--warn);background:rgba(242,184,75,.1);border:1px solid rgba(242,184,75,.3)}
 .app-description{color:var(--muted);font-size:12.5px;line-height:1.5;margin:7px 0 14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:37px}
 .app-meta{display:flex;align-items:center;gap:6px;margin-top:auto;flex-wrap:wrap}
 .cat-tag,.license-tag{font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;border:1px solid var(--line2);color:var(--muted)}
 .license-tag.lic-open{color:var(--ok);border-color:rgba(95,211,160,.28)}
 .license-tag.lic-partly{color:var(--warn);border-color:rgba(242,184,75,.3)}
 .license-tag.lic-free{color:var(--info);border-color:rgba(127,166,255,.3)}
-.update-app{border:1px solid var(--line2);background:transparent;color:var(--text2);border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer}
-.update-app:hover:not(:disabled){border-color:var(--accent);color:#fff}.update-app:disabled{opacity:.5;cursor:default}
 
 /* ---------- Profiles ---------- */
 .profiles-panel{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px}

@@ -94,17 +94,6 @@ function interpretInstall(result) {
   return { ok: false, message };
 }
 
-// Same for `winget upgrade`.
-function interpretUpgrade(result) {
-  if (result.ok) return { ok: true, message: "Updated successfully." };
-  const c = normalizeCode(result.code);
-  if (c === CODES.NO_APPLICABLE_UPDATE || /no available upgrade|no newer package/i.test(result.output || "")) return { ok: true, upToDate: true, message: "Already up to date." };
-  if (REBOOT.has(c)) return { ok: true, rebootRequired: true, message: "Updated. Restart Windows to finish." };
-  if (c === CODES.NO_PACKAGES_FOUND) return { ok: false, message: "WinGet does not see this app as installed, so it cannot update it." };
-  const message = describeCode(c) || result.error || (c !== null ? "WinGet failed (" + hex(c) + ")." : "Update failed.");
-  return { ok: false, message };
-}
-
 // Parse the JSON written by `winget export`. Returns a Set of lowercase package ids, or null if unparseable.
 function parseExportJson(text) {
   try {
@@ -135,24 +124,6 @@ function matchInstalled(item, installedIds) {
     for (const id of installedIds) if (re.test(id)) return id;
   }
   return null;
-}
-
-// `winget upgrade` prints a localized table, but package ids are never localized, so find known ids as whole tokens.
-// Returns a Set of lowercase ids that appear. Truncated ids ("Foo.Bar…") will not match, which only means a missed badge.
-function parseUpgradeOutput(text, ids) {
-  const found = new Set();
-  const wanted = [...ids].map((id) => String(id).toLowerCase());
-  const wantedSet = new Set(wanted);
-  for (const line of String(text || "").split(/\r?\n/)) {
-    for (const token of line.toLowerCase().split(/[\s|]+/)) {
-      if (wantedSet.has(token)) { found.add(token); continue; }
-      // When output is piped, WinGet cuts long columns and ends them with "…" ("jetbrains.intellijidea.com…").
-      // Accept a truncated token only if exactly one wanted id starts with it, so a short prefix can never match the wrong app.
-      const m = /^(.{6,}?)(?:…|\.\.\.)$/.exec(token);
-      if (m) { const hits = wanted.filter((id) => id.startsWith(m[1])); if (hits.length === 1) found.add(hits[0]); }
-    }
-  }
-  return found;
 }
 
 // Every WinGet call pins the community source: it skips initialising the msstore source (faster, and it works where the Store is
@@ -188,4 +159,4 @@ function createProgressTracker() {
   };
 }
 
-module.exports = { createProgressTracker, matchInstalled, parseUpgradeOutput, SOURCE_ARGS, CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, interpretUpgrade, parseExportJson };
+module.exports = { createProgressTracker, matchInstalled, SOURCE_ARGS, CODES, normalizeCode, describeCode, tailOutput, capAppend, isScopeFallback, interpretInstall, parseExportJson };

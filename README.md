@@ -15,7 +15,6 @@ OpenInstall is a desktop app for discovering a curated catalog of 209 Windows ap
 - Use six starter profiles: Everyday Essentials, Creator Studio, Developer Workstation, Gaming Essentials, Privacy & Safety, and Open-Source Toolkit.
 - Detect applications recognized by WinGet (one fast `winget export` scan, with a per-package fallback).
 - Keyboard shortcuts: press `/` or `Ctrl+K` to search, `Esc` to clear.
-- Update detected apps from the **Installed apps** view: one `winget upgrade` check shows an **Update available** badge, and **Update all** updates just those apps.
 - Readable install results: WinGet exit codes are translated into plain messages, and "restart required" is reported instead of a failure.
 - App tiles use logos bundled in `src/logos/` (create them once with `npm run fetch:logos`, then commit them) or, failing that, the emoji from the catalog. The app makes **no internet requests for icons by default**. Tick **Fetch app logos online** to also try Google, DuckDuckGo or GitHub for apps without a bundled logo (each one is a request that reveals which apps you are browsing).
 - Closing the window while installs are running asks for confirmation instead of silently orphaning the installers; only one OpenInstall window can run at a time.
@@ -93,7 +92,7 @@ OpenInstall asks WinGet to install the package IDs stored in the `src/catalog-pa
 - Some installers genuinely require elevation. Never approve a prompt unless you recognize the publisher and understand the requested action.
 - Installed-app detection is based on WinGet (a single `winget export` scan, with a per-package fallback for old WinGet versions) and may not detect apps installed by other methods.
 - Links opened from the app are limited to catalog sources and this project's own release page.
-- Installs and updates run one at a time, because overlapping WinGet installs conflict. The queue lives in the main process, so it keeps running (and the close prompt keeps guarding it) between items.
+- Installs run one at a time, because overlapping WinGet installs conflict. The queue lives in the main process, so it keeps running (and the close prompt keeps guarding it) between items.
 - Every WinGet call is pinned to the community source (`--source winget`), which is faster and does not depend on the Microsoft Store source.
 - If an app has no per-user installer (WinGet exit code `NO_APPLICABLE_INSTALLER`), OpenInstall retries with WinGet's default scope, which may show a UAC prompt. The result row says when this happened.
 - Entries that pin a major version (Python 3.x, Ruby, GIMP, Visual Studio) have a `detectRegex`, so any installed version of that family counts as installed and **Update** upgrades the version you actually have.
