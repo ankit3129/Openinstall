@@ -240,10 +240,26 @@ async function updateOne(item, report) {
   if (!item.packageId || item.installType === "website") return { status: "failure", message: "This application must be updated from its official website." };
   if (!(await ensureWinget())) return { status: "failure", message: WINGET_MISSING };
   const target = installedMap.get(item.id) || item.packageId; // the version family that is really installed, not the catalog's pinned id
-  // No --scope here: an app installed machine-wide would be filtered out and fail to update.
-  const result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, "--silent", "--accept-package-agreements", ...WINGET_COMMON], undefined, trackerFor(report));
-  if (result.cancelled) return { status: "skipped", reason: "cancelled", message: "Cancelled" };
-  const verdict = winget.interpretUpgrade(result);
+  const common = ["--silent", "--accept-package-agreements", ...WINGET_COMMON];
+  const notFound = (r) => !r.ok && !r.cancelled && winget.normalizeCode(r.code) === winget.CODES.NO_PACKAGES_FOUND;
+  const cancelled = { status: "skipped", reason: "cancelled", message: "Cancelled" };
+  // 1) Normal upgrade. No --scope here: an app installed machine-wide would be filtered out and fail to update.
+  let result = await runWinget(["upgrade", "--id", target, "--exact", ...SRC, ...common], undefined, trackerFor(report));
+  if (result.cancelled) return cancelled;
+  // 2) The "Update available" badge comes from `winget upgrade`, but looking the app up by id can still say "not installed"
+  //    (apps WinGet tracks through Windows' installed-programs list, e.g. Docker Desktop). Try again without the source filter.
+  if (notFound(result)) {
+    result = await runWinget(["upgrade", "--id", target, "--exact", ...common], undefined, trackerFor(report));
+    if (result.cancelled) return cancelled;
+  }
+  let verdict = winget.interpretUpgrade(result);
+  // 3) Last resort: run the same installer path that installed the app, forced, which puts the newest version over the old one.
+  if (notFound(result)) {
+    result = await runWinget(["install", "--id", target, "--exact", ...SRC, "--force", ...common], undefined, trackerFor(report));
+    if (result.cancelled) return cancelled;
+    verdict = winget.interpretInstall(result);
+    if (verdict.ok && !verdict.rebootRequired) verdict = { ...verdict, message: "Updated to the latest version." };
+  }
   if (verdict.ok && upgradableCache) upgradableCache = upgradableCache.filter((id) => id !== item.id);
   return describe(result, verdict);
 }

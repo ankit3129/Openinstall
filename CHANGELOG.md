@@ -3,6 +3,7 @@
 ## 0.9.0
 
 ### Fixed
+- **Update** no longer stops at "WinGet does not see this app as installed" (seen with Docker Desktop). If the first upgrade lookup fails it retries without the source filter, then reinstalls the latest version over the old one.
 - The **Update** button and **Update all** now appear only for apps WinGet reported as having a newer version. Before, every installed app had an Update button that did nothing when no update existed.
 
 ### Changed
